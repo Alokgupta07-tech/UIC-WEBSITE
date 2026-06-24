@@ -3,7 +3,7 @@
 
 export type EventStatus = "draft" | "published";
 
-export type MediaType = "image";
+export type MediaType = "image" | "video";
 
 export interface EventCategory {
   id: string;
@@ -40,6 +40,7 @@ export interface EventGalleryItem {
   eventTitle: string | null;
   mediaUrl: string;
   mediaType: MediaType;
+  album: string;
   caption: string | null;
   createdAt: string | null;
 }

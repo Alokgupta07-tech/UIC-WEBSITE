@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,14 +18,29 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, Settings, Image, CalendarPlus, Users, Pencil, Shield, Eye, EyeOff, Crown } from "lucide-react";
+import { Trash2, Plus, Settings, Image, CalendarPlus, Users, Pencil, Shield, Eye, EyeOff, Crown, UploadCloud, Play, X, Folder } from "lucide-react";
 import { getSettings, updateSettings } from "@/services/settings";
 import { getAllEventsAdmin } from "@/services/events";
 import { getAllTeamAdmin, createTeamMember, updateTeamMember, deleteTeamMember } from "@/services/team";
 import { getAdmins, getAllUsers, promoteToAdmin, removeAdmin } from "@/services/userManagement";
+import { getGallery, createGalleryItem, deleteGalleryItem, uploadFile, detectMediaType } from "@/services/gallery";
 import { isSuperAdmin } from "@/config/superAdmin";
-import type { TeamMember, ClubEvent } from "@/types";
+import type { TeamMember, ClubEvent, EventGalleryItem, MediaType } from "@/types";
 import type { TeamInput } from "@/services/team";
+
+// Inline SVG placeholder shown when an image URL fails to load.
+const FALLBACK_IMAGE =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+      <rect width="400" height="400" fill="#e2e8f0"/>
+      <g fill="none" stroke="#94a3b8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="90" y="110" width="220" height="180" rx="12"/>
+        <circle cx="150" cy="160" r="18"/>
+        <path d="M110 270 L180 200 L230 250 L270 210 L300 270 Z"/>
+      </g>
+    </svg>`
+  );
 
 const Admin = () => {
   const { user, loading } = useAuth();
@@ -157,7 +172,59 @@ const Admin = () => {
   };
 
   // --- Gallery Upload ---
-  const [galleryForm, setGalleryForm] = useState({ image_url: "", caption: "", event_id: "" });
+  const [galleryForm, setGalleryForm] = useState({
+    media_url: "",
+    caption: "",
+    album: "",
+    event_id: "",
+    media_type: "image" as MediaType,
+  });
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleFilesSelected = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    // Take the first file — fills the form preview + media_url after upload.
+    const file = files[0];
+    setPendingFile(file);
+    setGalleryForm((f) => ({
+      ...f,
+      media_url: "",
+      media_type: detectMediaType(file.name),
+    }));
+    setUploadProgress(0);
+  };
+
+  const runUpload = async () => {
+    if (!pendingFile) return;
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      const publicUrl = await uploadFile(pendingFile, (pct) => setUploadProgress(pct));
+      setGalleryForm((f) => ({ ...f, media_url: publicUrl, media_type: detectMediaType(pendingFile.name) }));
+      setPendingFile(null);
+      toast.success("Upload complete — review details and add to gallery.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const clearPendingFile = () => {
+    setPendingFile(null);
+    setUploadProgress(0);
+    setGalleryForm((f) => ({ ...f, media_url: "", media_type: "image" }));
+  };
 
   const addPhoto = useMutation({
     mutationFn: async () => {
@@ -168,18 +235,23 @@ const Admin = () => {
           throw new Error("Event ID must be a valid UUID.");
         }
       }
-
-      const { error } = await supabase.from("event_gallery").insert({
-        image_url: galleryForm.image_url.trim(),
+      if (!galleryForm.media_url.trim()) {
+        throw new Error("Upload an image or paste a URL first.");
+      }
+      await createGalleryItem({
+        media_url: galleryForm.media_url.trim(),
         caption: galleryForm.caption.trim() || null,
+        album: galleryForm.album.trim() || null,
+        media_type: galleryForm.media_type,
         event_id: eventId || null,
         uploaded_by: user?.id || null,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Photo added to gallery!");
-      setGalleryForm({ image_url: "", caption: "", event_id: "" });
+      setGalleryForm({ media_url: "", caption: "", album: "", event_id: "", media_type: "image" });
+      setPendingFile(null);
+      setUploadProgress(0);
       queryClient.invalidateQueries({ queryKey: ["gallery"] });
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to add photo."),
@@ -187,21 +259,25 @@ const Admin = () => {
 
   const { data: galleryPhotos } = useQuery({
     queryKey: ["gallery"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("event_gallery").select("*").order("uploaded_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: getGallery,
     enabled: isAdmin,
   });
 
   const deletePhoto = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("event_gallery").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => deleteGalleryItem(id),
     onSuccess: () => { toast.success("Photo deleted"); queryClient.invalidateQueries({ queryKey: ["gallery"] }); },
   });
+
+  // Group existing gallery photos by album for the admin grid.
+  const groupedByAlbum = useMemo(() => {
+    const groups = new Map<string, EventGalleryItem[]>();
+    for (const photo of galleryPhotos ?? []) {
+      const album = photo.album || "General";
+      if (!groups.has(album)) groups.set(album, []);
+      groups.get(album)!.push(photo);
+    }
+    return Array.from(groups.entries());
+  }, [galleryPhotos]);
 
   // --- Add Event ---
   const emptyEventForm = {
@@ -836,34 +912,185 @@ const Admin = () => {
           {/* Gallery */}
           <TabsContent value="gallery">
             <div className="grid gap-6 lg:grid-cols-2">
+              {/* Upload / Add Form */}
               <Card>
                 <CardHeader><CardTitle>Add Photo</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <div><Label>Image URL *</Label><Input value={galleryForm.image_url} onChange={e => setGalleryForm({...galleryForm, image_url: e.target.value})} placeholder="https://..." /></div>
+                  {/* Drag & drop upload area */}
+                  <div>
+                    <Label>Upload Media</Label>
+                    {!pendingFile && !galleryForm.media_url ? (
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                        onDragLeave={() => setIsDragging(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDragging(false);
+                          handleFilesSelected(e.dataTransfer.files);
+                        }}
+                        className={`mt-1.5 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+                          isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/40"
+                        }`}
+                      >
+                        <UploadCloud className="h-10 w-10 text-muted-foreground" />
+                        <p className="text-sm font-medium">Drag &amp; drop images here or click to browse</p>
+                        <p className="text-xs text-muted-foreground">Images and videos · multiple files allowed</p>
+                      </div>
+                    ) : (
+                      <div className="mt-1.5 flex items-center gap-3 rounded-xl border bg-muted/30 p-3">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                          {galleryForm.media_type === "video" ? (
+                            <>
+                              <video src={pendingFile ? URL.createObjectURL(pendingFile) : galleryForm.media_url} className="h-full w-full object-cover" muted />
+                              <span className="absolute inset-0 flex items-center justify-center bg-black/40"><Play className="h-5 w-5 fill-white text-white" /></span>
+                            </>
+                          ) : (
+                            <img src={pendingFile ? URL.createObjectURL(pendingFile) : galleryForm.media_url} alt="preview" className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMAGE; }} />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{pendingFile?.name ?? (galleryForm.media_url ? "Uploaded media" : "")}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {pendingFile ? formatFileSize(pendingFile.size) : "Ready to add to gallery"}
+                          </p>
+                          {uploading && (
+                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                              <div className="h-full rounded-full bg-primary transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
+                            </div>
+                          )}
+                        </div>
+                        {!uploading && (
+                          <Button variant="ghost" size="icon" onClick={clearPendingFile} className="shrink-0">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleFilesSelected(e.target.files)}
+                    />
+                  </div>
+
+                  {/* Upload action + progress */}
+                  {pendingFile && !galleryForm.media_url && (
+                    <div className="space-y-2">
+                      <Button onClick={runUpload} disabled={uploading} className="w-full bg-gradient-to-r from-primary to-secondary">
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        {uploading ? `Uploading... ${uploadProgress}%` : "Upload to Gallery"}
+                      </Button>
+                      {uploading && (
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-primary transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {galleryForm.media_url && (
+                    <p className="rounded-md bg-primary/10 px-3 py-2 text-xs text-primary">✓ Media uploaded. Add details below.</p>
+                  )}
+
+                  <div><Label>Album Name</Label><Input value={galleryForm.album} onChange={e => setGalleryForm({...galleryForm, album: e.target.value})} placeholder="e.g. Orientation 2025, Hackathon 2024" /></div>
                   <div><Label>Caption</Label><Input value={galleryForm.caption} onChange={e => setGalleryForm({...galleryForm, caption: e.target.value})} /></div>
                   <div><Label>Event ID (optional)</Label><Input value={galleryForm.event_id} onChange={e => setGalleryForm({...galleryForm, event_id: e.target.value})} placeholder="UUID of the event" /></div>
-                  <Button onClick={() => addPhoto.mutate()} disabled={addPhoto.isPending || !galleryForm.image_url} className="bg-gradient-to-r from-primary to-secondary">
+                  <div>
+                    <Label>Or paste image URL directly</Label>
+                    <Input value={galleryForm.media_url} onChange={e => setGalleryForm({...galleryForm, media_url: e.target.value, media_type: detectMediaType(e.target.value)})} placeholder="https://..." />
+                  </div>
+                  <Button onClick={() => addPhoto.mutate()} disabled={addPhoto.isPending || !galleryForm.media_url} className="bg-gradient-to-r from-primary to-secondary">
                     <Plus className="mr-2 h-4 w-4" />
-                    Add to Gallery
+                    {addPhoto.isPending ? "Adding..." : "Add to Gallery"}
                   </Button>
                 </CardContent>
               </Card>
 
+              {/* Existing Photos grouped by album */}
               <div>
                 <h3 className="mb-3 font-semibold">Existing Photos ({galleryPhotos?.length ?? 0})</h3>
-                <div className="grid grid-cols-2 gap-3 max-h-[500px] overflow-y-auto">
-                  {galleryPhotos?.map((photo) => (
-                    <div key={photo.id} className="relative group rounded-lg overflow-hidden border">
-                      <img src={photo.image_url} alt={photo.caption ?? ""} className="aspect-square w-full object-cover" />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Button variant="destructive" size="sm" onClick={() => deletePhoto.mutate(photo.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                {galleryPhotos?.length === 0 ? (
+                  <div className="rounded-2xl border bg-muted/40 p-12 text-center text-sm text-muted-foreground">
+                    <Image className="mx-auto mb-3 h-10 w-10 opacity-50" />
+                    No photos yet. Upload your first one!
+                  </div>
+                ) : (
+                  <div className="max-h-[600px] space-y-6 overflow-y-auto pr-1">
+                    {groupedByAlbum.map(([album, photos]) => (
+                      <div key={album} className="rounded-2xl border bg-card/50 p-3">
+                        <div className="mb-3 flex items-center gap-2 px-1">
+                          <Folder className="h-4 w-4 text-primary" />
+                          <Badge variant="secondary" className="rounded-md text-xs">{album}</Badge>
+                          <span className="text-xs text-muted-foreground">{photos.length}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {photos.map((photo) => (
+                            <div
+                              key={photo.id}
+                              className="group relative aspect-square overflow-hidden rounded-xl shadow-md transition-all duration-300 hover:scale-[1.03] hover:shadow-xl"
+                            >
+                              {photo.mediaType === "video" ? (
+                                <video
+                                  src={photo.mediaUrl}
+                                  className="h-full w-full object-cover"
+                                  muted
+                                  loop
+                                  autoPlay
+                                  playsInline
+                                />
+                              ) : (
+                                <img
+                                  src={photo.mediaUrl}
+                                  alt={photo.caption ?? ""}
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    const img = e.currentTarget as HTMLImageElement;
+                                    img.onerror = null;
+                                    img.src = FALLBACK_IMAGE;
+                                  }}
+                                />
+                              )}
+
+                              {/* Hover overlay */}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                                {photo.caption && (
+                                  <p className="px-2 text-center text-xs font-medium text-white">{photo.caption}</p>
+                                )}
+                              </div>
+
+                              {/* Video play badge */}
+                              {photo.mediaType === "video" && (
+                                <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-md bg-black/60 p-1">
+                                  <Play className="h-3 w-3 fill-white text-white" />
+                                </span>
+                              )}
+
+                              {/* Album badge */}
+                              <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                                {photo.album}
+                              </span>
+
+                              {/* Delete button */}
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full opacity-0 shadow-lg transition-opacity duration-300 group-hover:opacity-100"
+                                onClick={() => deletePhoto.mutate(photo.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <p className="p-2 text-xs truncate">{photo.caption ?? "Gallery Photo"}</p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </TabsContent>

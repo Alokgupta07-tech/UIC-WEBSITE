@@ -203,6 +203,7 @@ export type Database = {
       }
       event_gallery: {
         Row: {
+          album: string | null
           caption: string | null
           created_at: string | null
           event_id: string | null
@@ -212,6 +213,7 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
+          album?: string | null
           caption?: string | null
           created_at?: string | null
           event_id?: string | null
@@ -221,6 +223,7 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
+          album?: string | null
           caption?: string | null
           created_at?: string | null
           event_id?: string | null
