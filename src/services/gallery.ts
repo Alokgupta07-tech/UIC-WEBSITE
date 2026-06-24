@@ -2,6 +2,14 @@ import { supabase } from "@/integrations/supabase/client";
 import type { EventGalleryItem, MediaType } from "@/types";
 import { isMissingTableError } from "@/services/supabaseErrors";
 
+/**
+ * Row shape as returned by Supabase for event_gallery.
+ *
+ * Column names are the *current* production names (media_url, created_at, …).
+ * The migration `20260624000001_gallery_schema_fix.sql` ensures the live table
+ * is renamed to match these names even if it was originally created by the
+ * older `20260622` migration (which used image_url / uploaded_at).
+ */
 type GalleryRow = {
   id: string;
   event_id: string | null;
@@ -21,12 +29,30 @@ export function detectMediaType(fileNameOrUrl: string): MediaType {
   return VIDEO_EXTENSIONS.includes(ext) ? "video" : "image";
 }
 
+/**
+ * Fix storage URLs that are missing the `/public/` segment.
+ *
+ * Supabase public storage URLs MUST contain `/object/public/`.
+ * Old code or manual inserts may have stored URLs as
+ *   …/storage/v1/object/{bucket}/file.jpg          ← broken (400)
+ *   …/storage/v1/object/public/{bucket}/file.jpg   ← correct
+ *
+ * This helper patches the URL in-place so existing DB rows keep working.
+ */
+export function sanitizeMediaUrl(url: string): string {
+  if (!url) return url;
+  // Already has /public/ — good.
+  if (url.includes("/object/public/")) return url;
+  // Missing /public/ — insert it.
+  return url.replace(/\/object\//, "/object/public/");
+}
+
 function mapItem(row: GalleryRow): EventGalleryItem {
   return {
     id: row.id,
     eventId: row.event_id,
     eventTitle: null,
-    mediaUrl: row.media_url,
+    mediaUrl: sanitizeMediaUrl(row.media_url),
     mediaType: (row.media_type === "video" ? "video" : "image") as MediaType,
     album: row.album?.trim() || "General",
     caption: row.caption,
@@ -64,7 +90,7 @@ export async function createGalleryItem(input: {
     const { data, error } = await supabase
       .from("event_gallery")
       .insert({
-        media_url: input.media_url,
+        media_url: sanitizeMediaUrl(input.media_url),
         caption: input.caption ?? null,
         album: input.album?.trim() || "General",
         media_type: input.media_type ?? detectMediaType(input.media_url),
@@ -98,13 +124,17 @@ export async function deleteGalleryItem(id: string) {
  * progress events (the installed storage-js `.upload()` typings expose no progress
  * callback). Authenticated with the admin's access token so the bucket's RLS write
  * policy passes. `onProgress` receives a 0–100 percentage.
+ *
+ * Files are stored under a `gallery/` prefix to keep them organised alongside
+ * other bucket content (events, team photos, …).
  */
 export async function uploadFile(
   file: File,
   onProgress?: (percent: number) => void,
 ): Promise<string> {
   const fileExt = file.name.split(".").pop();
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+  const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, "_").slice(0, 24);
+  const fileName = `gallery/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}.${fileExt}`;
   const bucket = "event-media";
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -141,6 +171,3 @@ export async function uploadFile(
     xhr.send(file);
   });
 }
-
-
-
