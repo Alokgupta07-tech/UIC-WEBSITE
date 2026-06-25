@@ -235,11 +235,13 @@ const Admin = () => {
           throw new Error("Event ID must be a valid UUID.");
         }
       }
-      if (!galleryForm.media_url.trim()) {
+      const uploadedUrl = galleryForm.media_url.trim();
+      if (!uploadedUrl) {
         throw new Error("Upload an image or paste a URL first.");
       }
       await createGalleryItem({
-        media_url: galleryForm.media_url.trim(),
+        image_url: uploadedUrl,
+        media_url: uploadedUrl,
         caption: galleryForm.caption.trim() || null,
         album: galleryForm.album.trim() || null,
         media_type: galleryForm.media_type,

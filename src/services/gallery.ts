@@ -5,20 +5,21 @@ import { isMissingTableError } from "@/services/supabaseErrors";
 /**
  * Row shape as returned by Supabase for event_gallery.
  *
- * Column names are the *current* production names (media_url, created_at, …).
- * The migration `20260624000001_gallery_schema_fix.sql` ensures the live table
- * is renamed to match these names even if it was originally created by the
- * older `20260622` migration (which used image_url / uploaded_at).
+ * The live table may have BOTH old columns (image_url, uploaded_at) AND new ones
+ * (media_url, created_at) depending on which migrations ran.  We accept both
+ * here so the mapper always has data to work with.
  */
 type GalleryRow = {
   id: string;
   event_id: string | null;
+  image_url: string | null;
   media_url: string;
   media_type: string | null;
   album: string | null;
   caption: string | null;
   uploaded_by: string | null;
   created_at: string | null;
+  uploaded_at: string | null;
 };
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "m4v", "ogg", "ogv", "mkv"];
@@ -47,25 +48,43 @@ export function sanitizeMediaUrl(url: string): string {
   return url.replace(/\/object\//, "/object/public/");
 }
 
+/**
+ * Pick the best image URL from a row.
+ * Prefer `image_url` (NOT NULL on live DB), fall back to `media_url`.
+ */
+function pickImageUrl(row: GalleryRow): string {
+  const url = row.image_url || row.media_url;
+  return sanitizeMediaUrl(url);
+}
+
 function mapItem(row: GalleryRow): EventGalleryItem {
   return {
     id: row.id,
     eventId: row.event_id,
     eventTitle: null,
-    mediaUrl: sanitizeMediaUrl(row.media_url),
+    mediaUrl: pickImageUrl(row),
     mediaType: (row.media_type === "video" ? "video" : "image") as MediaType,
     album: row.album?.trim() || "General",
     caption: row.caption,
-    createdAt: row.created_at,
+    createdAt: row.uploaded_at || row.created_at,
   };
 }
 
 export async function getGallery(): Promise<EventGalleryItem[]> {
   try {
-    const { data, error } = await supabase
+    // Prefer uploaded_at (guaranteed on live DB); fall back to created_at.
+    let { data, error } = await supabase
       .from("event_gallery")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("uploaded_at", { ascending: false });
+
+    // uploaded_at might not exist — fall back to created_at
+    if (error && error.code === "42703") {
+      ({ data, error } = await supabase
+        .from("event_gallery")
+        .select("*")
+        .order("created_at", { ascending: false }));
+    }
 
     if (error) {
       if (isMissingTableError(error)) return [];
@@ -79,6 +98,7 @@ export async function getGallery(): Promise<EventGalleryItem[]> {
 }
 
 export async function createGalleryItem(input: {
+  image_url: string;
   media_url: string;
   caption?: string | null;
   album?: string | null;
@@ -86,11 +106,13 @@ export async function createGalleryItem(input: {
   event_id?: string | null;
   uploaded_by?: string | null;
 }) {
+  const sanitizedUrl = sanitizeMediaUrl(input.media_url);
   try {
     const { data, error } = await supabase
       .from("event_gallery")
       .insert({
-        media_url: sanitizeMediaUrl(input.media_url),
+        image_url: sanitizedUrl,
+        media_url: sanitizedUrl,
         caption: input.caption ?? null,
         album: input.album?.trim() || "General",
         media_type: input.media_type ?? detectMediaType(input.media_url),

@@ -208,8 +208,10 @@ export type Database = {
           created_at: string | null
           event_id: string | null
           id: string
+          image_url: string | null
           media_type: string | null
           media_url: string
+          uploaded_at: string | null
           uploaded_by: string | null
         }
         Insert: {
@@ -218,8 +220,10 @@ export type Database = {
           created_at?: string | null
           event_id?: string | null
           id?: string
+          image_url?: string | null
           media_type?: string | null
           media_url: string
+          uploaded_at?: string | null
           uploaded_by?: string | null
         }
         Update: {
@@ -228,8 +232,10 @@ export type Database = {
           created_at?: string | null
           event_id?: string | null
           id?: string
+          image_url?: string | null
           media_type?: string | null
           media_url?: string
+          uploaded_at?: string | null
           uploaded_by?: string | null
         }
         Relationships: [
