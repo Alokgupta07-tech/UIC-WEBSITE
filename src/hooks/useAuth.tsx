@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [roleLoading, setRoleLoading] = useState(true);
   const navigate = useNavigate();
+  const previousUserId = useRef<string | null>(null);
 
   const refreshAdminRole = async (userId?: string | null) => {
     if (!userId) {
@@ -54,20 +55,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes (handles redirect callback from Google)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        const newUserId = session?.user?.id ?? null;
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        void refreshAdminRole(session?.user?.id ?? null);
+        void refreshAdminRole(newUserId);
 
-        if (event === "SIGNED_IN") {
+        // Supabase re-fires SIGNED_IN on tab-focus token refresh for the
+        // SAME user, not just on a real new login. Only treat it as a
+        // genuine sign-in (and navigate/toast) if the user id actually
+        // changed from what we last saw.
+        if (event === "SIGNED_IN" && newUserId !== previousUserId.current) {
           toast.success("Welcome to Unstop Igniters Club!");
           navigate("/dashboard");
         }
+
+        previousUserId.current = newUserId;
       }
     );
 
-    // Check existing session
+    // Check existing session — seeds previousUserId BEFORE any subsequent
+    // onAuthStateChange events fire, so a real OAuth login (null → id)
+    // still triggers the toast+navigate, but an already-logged-in tab
+    // switch does not.
     supabase.auth.getSession().then(({ data: { session } }) => {
+      previousUserId.current = session?.user?.id ?? null;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
