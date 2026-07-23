@@ -46,6 +46,8 @@ const FALLBACK_IMAGE =
 
 const Admin = () => {
   const { user, loading } = useAuth();
+  const userId = user?.id ?? null;
+  const userEmail = user?.email ?? null;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -65,7 +67,7 @@ const Admin = () => {
     let active = true;
 
     const verifyRole = async () => {
-      if (!loading && !user) {
+      if (!loading && !userId) {
         navigate("/auth", { replace: true });
         if (active) {
           setCheckingRole(false);
@@ -73,7 +75,7 @@ const Admin = () => {
         return;
       }
 
-      if (!user) {
+      if (!userId) {
         return;
       }
 
@@ -82,7 +84,7 @@ const Admin = () => {
         const { data, error } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .in("role", ["admin", "super_admin"])
           .limit(1);
 
@@ -91,11 +93,11 @@ const Admin = () => {
         const hasRole = data && data.length > 0;
 
         // Auto-recovery: if this is the super admin email but role is missing, restore it
-        if (!hasRole && isSuperAdmin(user.email)) {
+        if (!hasRole && isSuperAdmin(userEmail)) {
           await supabase
             .from("user_roles")
             .upsert(
-              { user_id: user.id, role: "super_admin" },
+              { user_id: userId, role: "super_admin" },
               { onConflict: "user_id,role", ignoreDuplicates: true }
             );
           if (active) {
@@ -132,7 +134,7 @@ const Admin = () => {
     return () => {
       active = false;
     };
-  }, [user, loading, navigate]);
+  }, [userId, userEmail, loading, navigate]);
 
   // --- Site Settings ---
   const { data: settings } = useQuery({

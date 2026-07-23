@@ -12,6 +12,8 @@ import { isSuperAdmin } from "@/config/superAdmin";
  */
 export function useRequireAdmin() {
   const { user, loading } = useAuth();
+  const userId = user?.id ?? null;
+  const userEmail = user?.email ?? null;
   const navigate = useNavigate();
   const [roleLoading, setRoleLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -24,7 +26,7 @@ export function useRequireAdmin() {
         return;
       }
 
-      if (!user) {
+      if (!userId) {
         if (active) {
           setIsAdmin(false);
           setRoleLoading(false);
@@ -42,7 +44,7 @@ export function useRequireAdmin() {
         const { data, error } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .in("role", ["admin", "super_admin"])
           .limit(1);
 
@@ -51,11 +53,11 @@ export function useRequireAdmin() {
         const hasRole = data && data.length > 0;
 
         // Auto-recovery: if this is the super admin email but role is missing, restore it
-        if (!hasRole && isSuperAdmin(user.email)) {
+        if (!hasRole && isSuperAdmin(userEmail)) {
           await supabase
             .from("user_roles")
             .upsert(
-              { user_id: user.id, role: "super_admin" },
+              { user_id: userId, role: "super_admin" },
               { onConflict: "user_id,role", ignoreDuplicates: true }
             );
 
@@ -93,8 +95,8 @@ export function useRequireAdmin() {
     return () => {
       active = false;
     };
-  }, [user, loading, navigate]);
+  }, [userId, userEmail, loading, navigate]);
 
-  return { ready: !!user && isAdmin, loading: loading || roleLoading };
+  return { ready: !!userId && isAdmin, loading: loading || roleLoading };
 }
 

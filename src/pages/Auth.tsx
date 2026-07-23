@@ -31,12 +31,13 @@ const GoogleIcon = () => (
 const Auth = () => {
   const navigate = useNavigate();
   const { user, signInWithGoogle, loading } = useAuth();
+  const userId = user?.id ?? null;
 
   useEffect(() => {
-    if (user && !loading) {
+    if (userId && !loading) {
       navigate("/dashboard");
     }
-  }, [user, loading, navigate]);
+  }, [userId, loading, navigate]);
 
   if (loading) {
     return (

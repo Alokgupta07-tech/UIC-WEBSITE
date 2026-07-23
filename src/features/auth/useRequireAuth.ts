@@ -8,13 +8,14 @@ import { useAuth } from "@/hooks/useAuth";
  */
 export function useRequireAuth() {
   const { user, loading } = useAuth();
+  const userId = user?.id ?? null;
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !userId) {
       navigate("/auth", { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [userId, loading, navigate]);
 
-  return { ready: !!user, loading };
+  return { ready: !!userId, loading };
 }
