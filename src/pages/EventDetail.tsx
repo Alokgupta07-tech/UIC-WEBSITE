@@ -248,6 +248,13 @@ const EventDetail = () => {
                     </Tooltip>
                   </TooltipProvider>
                 )}
+                
+                {/* Mark My Attendance Button */}
+                <Link to={`/attendance?event=${event.id}`} className="block mt-4">
+                  <Button variant="outline" size="lg" className="w-full">
+                    Mark My Attendance
+                  </Button>
+                </Link>
               </Reveal>
             </div>
           </div>

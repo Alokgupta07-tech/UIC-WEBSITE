@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          event_id: string
+          id: string
+          participant_email: string | null
+          participant_name: string | null
+          redeemed_at: string | null
+          status: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          id?: string
+          participant_email?: string | null
+          participant_name?: string | null
+          redeemed_at?: string | null
+          status?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          id?: string
+          participant_email?: string | null
+          participant_name?: string | null
+          redeemed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_codes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_messages: {
         Row: {
           created_at: string | null
@@ -460,6 +504,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_attendance_codes: {
+        Args: {
+          p_event_id: string
+          p_count: number
+        }
+        Returns: {
+          code: string
+          created_at: string
+          created_by: string | null
+          event_id: string
+          id: string
+          participant_email: string | null
+          participant_name: string | null
+          redeemed_at: string | null
+          status: string
+        }[]
+      }
+      verify_attendance_code: {
+        Args: {
+          p_event_id: string
+          p_code: string
+          p_name: string
+          p_email: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

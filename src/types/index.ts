@@ -3,6 +3,20 @@
 
 export type EventStatus = "draft" | "published";
 
+export type AttendanceCodeStatus = "unused" | "used";
+
+export interface AttendanceCode {
+  id: string;
+  eventId: string;
+  code: string;
+  status: AttendanceCodeStatus;
+  participantName: string | null;
+  participantEmail: string | null;
+  redeemedAt: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
 export type MediaType = "image" | "video";
 
 export interface EventCategory {

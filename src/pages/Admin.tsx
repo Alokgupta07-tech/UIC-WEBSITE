@@ -18,14 +18,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, Settings, Image, CalendarPlus, Users, Pencil, Shield, Eye, EyeOff, Crown, UploadCloud, Play, X, Folder } from "lucide-react";
+import { Trash2, Plus, Settings, Image, CalendarPlus, Users, Pencil, Shield, Eye, EyeOff, Crown, UploadCloud, Play, X, Folder, Ticket, Download, Printer } from "lucide-react";
 import { getSettings, updateSettings } from "@/services/settings";
 import { getAllEventsAdmin } from "@/services/events";
 import { getAllTeamAdmin, createTeamMember, updateTeamMember, deleteTeamMember } from "@/services/team";
 import { getAdmins, getAllUsers, promoteToAdmin, removeAdmin } from "@/services/userManagement";
 import { getGallery, createGalleryItem, deleteGalleryItem, uploadFile, detectMediaType } from "@/services/gallery";
+import { getAttendanceCodes, generateAttendanceCodes, codesToCSV } from "@/services/attendance";
 import { isSuperAdmin } from "@/config/superAdmin";
-import type { TeamMember, ClubEvent, EventGalleryItem, MediaType } from "@/types";
+import type { TeamMember, ClubEvent, EventGalleryItem, MediaType, AttendanceCode } from "@/types";
 import type { TeamInput } from "@/services/team";
 
 // Inline SVG placeholder shown when an image URL fails to load.
@@ -166,8 +167,8 @@ const Admin = () => {
       });
       toast.success("Settings updated!");
       queryClient.invalidateQueries({ queryKey: ["settings"] });
-    } catch (e: any) {
-      toast.error(e.message || "Failed to update settings");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to update settings");
     }
   };
 
@@ -546,6 +547,58 @@ const Admin = () => {
       toast.error(e instanceof Error ? e.message : "Failed to remove admin."),
   });
 
+  // --- Attendance ---
+  const [attendanceEventId, setAttendanceEventId] = useState("");
+  const [attendanceCount, setAttendanceCount] = useState("50");
+
+  const { data: attendanceCodes, isLoading: attendanceLoading } = useQuery({
+    queryKey: ["attendance-codes", attendanceEventId],
+    queryFn: () => getAttendanceCodes(attendanceEventId),
+    enabled: isAdmin && !!attendanceEventId,
+  });
+
+  const generateCodesMutation = useMutation({
+    mutationFn: () => generateAttendanceCodes(attendanceEventId, parseInt(attendanceCount, 10)),
+    onSuccess: () => {
+      toast.success("Attendance codes generated!");
+      queryClient.invalidateQueries({ queryKey: ["attendance-codes", attendanceEventId] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to generate codes"),
+  });
+
+  const downloadCodesCSV = () => {
+    if (!attendanceCodes || !attendanceCodes.length) return;
+    const event = eventsAdmin?.find(e => e.id === attendanceEventId);
+    const title = event?.title || "event";
+    const csvStr = codesToCSV(attendanceCodes, title);
+    const blob = new Blob([csvStr], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `attendance-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-codes.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePrintCodes = () => {
+    window.print();
+  };
+
+  const attendanceStats = useMemo(() => {
+    if (!attendanceCodes) return { total: 0, used: 0, unused: 0 };
+    return attendanceCodes.reduce(
+      (acc, code) => {
+        acc.total++;
+        if (code.status === "used") acc.used++;
+        else acc.unused++;
+        return acc;
+      },
+      { total: 0, used: 0, unused: 0 }
+    );
+  }, [attendanceCodes]);
+
   // Whether the currently logged-in user is the super admin
   const currentUserIsSuperAdmin = isSuperAdmin(user?.email);
 
@@ -588,6 +641,7 @@ const Admin = () => {
             <TabsTrigger value="team"><Users className="mr-2 h-4 w-4" />Team</TabsTrigger>
             <TabsTrigger value="gallery"><Image className="mr-2 h-4 w-4" />Gallery</TabsTrigger>
             <TabsTrigger value="users"><Shield className="mr-2 h-4 w-4" />User Management</TabsTrigger>
+            <TabsTrigger value="attendance"><Ticket className="mr-2 h-4 w-4" />Attendance</TabsTrigger>
           </TabsList>
 
           {/* Site Settings */}
@@ -1232,6 +1286,151 @@ const Admin = () => {
                   </Table>
                 </CardContent>
               </Card>
+            </div>
+          </TabsContent>
+
+          {/* Attendance */}
+          <TabsContent value="attendance">
+            <div className="space-y-6 print:hidden">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Event Attendance Codes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                    <div className="flex-1 space-y-2">
+                      <Label>Select Event</Label>
+                      <select
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={attendanceEventId}
+                        onChange={(e) => setAttendanceEventId(e.target.value)}
+                      >
+                        <option value="" disabled>Select an event...</option>
+                        {eventsAdmin?.map(e => (
+                          <option key={e.id} value={e.id}>{e.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-32 space-y-2">
+                      <Label>Quantity</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="500"
+                        value={attendanceCount}
+                        onChange={(e) => setAttendanceCount(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      onClick={() => generateCodesMutation.mutate()}
+                      disabled={!attendanceEventId || generateCodesMutation.isPending || parseInt(attendanceCount) <= 0}
+                      className="bg-gradient-to-r from-primary to-secondary"
+                    >
+                      <Ticket className="mr-2 h-4 w-4" />
+                      {generateCodesMutation.isPending ? "Generating..." : "Generate Codes"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {attendanceEventId && (
+                <>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Codes</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{attendanceStats.total}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Used Codes</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-green-600">{attendanceStats.used}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Unused Codes</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-muted-foreground">{attendanceStats.unused}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                      <CardTitle>Generated Codes</CardTitle>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={downloadCodesCSV} disabled={!attendanceCodes?.length}>
+                          <Download className="mr-2 h-4 w-4" /> Download CSV
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handlePrintCodes} disabled={!attendanceCodes?.length}>
+                          <Printer className="mr-2 h-4 w-4" /> Print View
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {attendanceLoading ? (
+                        <div className="py-8 text-center text-muted-foreground">Loading...</div>
+                      ) : attendanceCodes && attendanceCodes.length > 0 ? (
+                        <div className="rounded-md border max-h-[500px] overflow-auto">
+                          <Table>
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                              <TableRow>
+                                <TableHead>Code</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Redeemed By</TableHead>
+                                <TableHead>Redeemed At</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {attendanceCodes.map((code) => (
+                                <TableRow key={code.id}>
+                                  <TableCell className="font-mono font-medium">{code.code}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={code.status === "used" ? "default" : "secondary"} className={code.status === "used" ? "bg-green-600" : ""}>
+                                      {code.status === "used" ? "Used" : "Unused"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {code.participantName ? (
+                                      <div>
+                                        <div className="font-medium">{code.participantName}</div>
+                                        <div className="text-xs text-muted-foreground">{code.participantEmail}</div>
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground">—</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {code.redeemedAt ? new Date(code.redeemedAt).toLocaleString() : "—"}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center text-muted-foreground">No codes generated yet.</div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+            
+            {/* Print View for Codes (only visible when printing) */}
+            <div className="hidden print:block">
+              <h2 className="text-2xl font-bold mb-6 text-center">
+                Attendance Codes - {eventsAdmin?.find(e => e.id === attendanceEventId)?.title || "Event"}
+              </h2>
+              <div className="grid grid-cols-4 gap-4">
+                {attendanceCodes?.filter(c => c.status === 'unused').map((code) => (
+                  <div key={code.id} className="border-2 border-dashed border-gray-400 p-4 flex flex-col items-center justify-center text-center">
+                    <span className="text-sm text-gray-500 mb-2">Code:</span>
+                    <span className="text-2xl font-mono font-bold tracking-widest">{code.code}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </TabsContent>
         </Tabs>
