@@ -90,3 +90,23 @@ export function codesToCSV(codes: AttendanceCode[], eventTitle: string): string 
   });
   return header + rows.join("\n");
 }
+
+export async function deleteAttendanceCode(id: string): Promise<void> {
+  try {
+    const { error } = await supabase.from("attendance_codes").delete().eq("id", id);
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error:", JSON.stringify(error));
+    throw error;
+  }
+}
+
+export async function deleteAllAttendanceCodes(eventId: string): Promise<void> {
+  try {
+    const { error } = await supabase.from("attendance_codes").delete().eq("event_id", eventId);
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error:", JSON.stringify(error));
+    throw error;
+  }
+}

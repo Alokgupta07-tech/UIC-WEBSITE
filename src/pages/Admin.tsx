@@ -24,7 +24,7 @@ import { getAllEventsAdmin } from "@/services/events";
 import { getAllTeamAdmin, createTeamMember, updateTeamMember, deleteTeamMember } from "@/services/team";
 import { getAdmins, getAllUsers, promoteToAdmin, removeAdmin } from "@/services/userManagement";
 import { getGallery, createGalleryItem, deleteGalleryItem, uploadFile, detectMediaType } from "@/services/gallery";
-import { getAttendanceCodes, generateAttendanceCodes, codesToCSV } from "@/services/attendance";
+import { getAttendanceCodes, generateAttendanceCodes, codesToCSV, deleteAttendanceCode, deleteAllAttendanceCodes } from "@/services/attendance";
 import { isSuperAdmin } from "@/config/superAdmin";
 import type { TeamMember, ClubEvent, EventGalleryItem, MediaType, AttendanceCode } from "@/types";
 import type { TeamInput } from "@/services/team";
@@ -550,12 +550,26 @@ const Admin = () => {
   // --- Attendance ---
   const [attendanceEventId, setAttendanceEventId] = useState("");
   const [attendanceCount, setAttendanceCount] = useState("50");
+  const [attendancePage, setAttendancePage] = useState(0);
+  const ATTENDANCE_PAGE_SIZE = 50;
 
   const { data: attendanceCodes, isLoading: attendanceLoading } = useQuery({
     queryKey: ["attendance-codes", attendanceEventId],
     queryFn: () => getAttendanceCodes(attendanceEventId),
     enabled: isAdmin && !!attendanceEventId,
   });
+
+  // Reset page when event changes
+  const handleAttendanceEventChange = (eventId: string) => {
+    setAttendanceEventId(eventId);
+    setAttendancePage(0);
+  };
+
+  const attendancePageCount = Math.ceil((attendanceCodes?.length ?? 0) / ATTENDANCE_PAGE_SIZE);
+  const attendancePagedCodes = attendanceCodes?.slice(
+    attendancePage * ATTENDANCE_PAGE_SIZE,
+    (attendancePage + 1) * ATTENDANCE_PAGE_SIZE
+  ) ?? [];
 
   const generateCodesMutation = useMutation({
     mutationFn: () => generateAttendanceCodes(attendanceEventId, parseInt(attendanceCount, 10)),
@@ -565,6 +579,44 @@ const Admin = () => {
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to generate codes"),
   });
+
+  const deleteCodeMutation = useMutation({
+    mutationFn: (id: string) => deleteAttendanceCode(id),
+    onSuccess: () => {
+      toast.success("Code deleted.");
+      queryClient.invalidateQueries({ queryKey: ["attendance-codes", attendanceEventId] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to delete code."),
+  });
+
+  const deleteAllCodesMutation = useMutation({
+    mutationFn: () => deleteAllAttendanceCodes(attendanceEventId),
+    onSuccess: () => {
+      toast.success("All codes deleted.");
+      setAttendancePage(0);
+      queryClient.invalidateQueries({ queryKey: ["attendance-codes", attendanceEventId] });
+    },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to delete codes."),
+  });
+
+  const confirmDeleteCode = (code: AttendanceCode) => {
+    if (window.confirm(`Delete code "${code.code}"? This cannot be undone.`)) {
+      deleteCodeMutation.mutate(code.id);
+    }
+  };
+
+  const confirmDeleteAllCodes = () => {
+    const count = attendanceCodes?.length ?? 0;
+    if (count === 0) return;
+    const eventTitle = eventsAdmin?.find(e => e.id === attendanceEventId)?.title ?? "this event";
+    if (
+      window.confirm(
+        `Delete all ${count} codes for "${eventTitle}"? Any photocopies already handed out will stop working. This cannot be undone.`
+      )
+    ) {
+      deleteAllCodesMutation.mutate();
+    }
+  };
 
   const downloadCodesCSV = () => {
     if (!attendanceCodes || !attendanceCodes.length) return;
@@ -1303,7 +1355,7 @@ const Admin = () => {
                       <select
                         className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         value={attendanceEventId}
-                        onChange={(e) => setAttendanceEventId(e.target.value)}
+                        onChange={(e) => handleAttendanceEventChange(e.target.value)}
                       >
                         <option value="" disabled>Select an event...</option>
                         {eventsAdmin?.map(e => (
@@ -1316,7 +1368,7 @@ const Admin = () => {
                       <Input
                         type="number"
                         min="1"
-                        max="500"
+                        max="2000"
                         value={attendanceCount}
                         onChange={(e) => setAttendanceCount(e.target.value)}
                       />
@@ -1366,49 +1418,98 @@ const Admin = () => {
                         <Button variant="outline" size="sm" onClick={handlePrintCodes} disabled={!attendanceCodes?.length}>
                           <Printer className="mr-2 h-4 w-4" /> Print View
                         </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={confirmDeleteAllCodes}
+                          disabled={!attendanceCodes?.length || deleteAllCodesMutation.isPending}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          {deleteAllCodesMutation.isPending ? "Deleting..." : "Delete All"}
+                        </Button>
                       </div>
                     </CardHeader>
                     <CardContent>
                       {attendanceLoading ? (
                         <div className="py-8 text-center text-muted-foreground">Loading...</div>
                       ) : attendanceCodes && attendanceCodes.length > 0 ? (
-                        <div className="rounded-md border max-h-[500px] overflow-auto">
-                          <Table>
-                            <TableHeader className="sticky top-0 bg-background z-10">
-                              <TableRow>
-                                <TableHead>Code</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Redeemed By</TableHead>
-                                <TableHead>Redeemed At</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {attendanceCodes.map((code) => (
-                                <TableRow key={code.id}>
-                                  <TableCell className="font-mono font-medium">{code.code}</TableCell>
-                                  <TableCell>
-                                    <Badge variant={code.status === "used" ? "default" : "secondary"} className={code.status === "used" ? "bg-green-600" : ""}>
-                                      {code.status === "used" ? "Used" : "Unused"}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    {code.participantName ? (
-                                      <div>
-                                        <div className="font-medium">{code.participantName}</div>
-                                        <div className="text-xs text-muted-foreground">{code.participantEmail}</div>
-                                      </div>
-                                    ) : (
-                                      <span className="text-muted-foreground">—</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-sm text-muted-foreground">
-                                    {code.redeemedAt ? new Date(code.redeemedAt).toLocaleString() : "—"}
-                                  </TableCell>
+                        <>
+                          <div className="rounded-md border overflow-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Code</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead>Redeemed By</TableHead>
+                                  <TableHead>Redeemed At</TableHead>
+                                  <TableHead className="w-10"></TableHead>
                                 </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
+                              </TableHeader>
+                              <TableBody>
+                                {attendancePagedCodes.map((code) => (
+                                  <TableRow key={code.id}>
+                                    <TableCell className="font-mono font-medium">{code.code}</TableCell>
+                                    <TableCell>
+                                      <Badge variant={code.status === "used" ? "default" : "secondary"} className={code.status === "used" ? "bg-green-600" : ""}>
+                                        {code.status === "used" ? "Used" : "Unused"}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      {code.participantName ? (
+                                        <div>
+                                          <div className="font-medium">{code.participantName}</div>
+                                          <div className="text-xs text-muted-foreground">{code.participantEmail}</div>
+                                        </div>
+                                      ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                      {code.redeemedAt ? new Date(code.redeemedAt).toLocaleString() : "—"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                        onClick={() => confirmDeleteCode(code)}
+                                        disabled={deleteCodeMutation.isPending}
+                                        title="Delete code"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          {attendancePageCount > 1 && (
+                            <div className="flex items-center justify-between mt-4">
+                              <p className="text-sm text-muted-foreground">
+                                Showing {attendancePage * ATTENDANCE_PAGE_SIZE + 1}–{Math.min((attendancePage + 1) * ATTENDANCE_PAGE_SIZE, attendanceCodes.length)} of {attendanceCodes.length} codes
+                              </p>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setAttendancePage(p => Math.max(0, p - 1))}
+                                  disabled={attendancePage === 0}
+                                >
+                                  Prev
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setAttendancePage(p => Math.min(attendancePageCount - 1, p + 1))}
+                                  disabled={attendancePage >= attendancePageCount - 1}
+                                >
+                                  Next
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <div className="py-8 text-center text-muted-foreground">No codes generated yet.</div>
                       )}
@@ -1417,11 +1518,11 @@ const Admin = () => {
                 </>
               )}
             </div>
-            
+
             {/* Print View for Codes (only visible when printing) */}
             <div className="hidden print:block">
               <h2 className="text-2xl font-bold mb-6 text-center">
-                Attendance Codes - {eventsAdmin?.find(e => e.id === attendanceEventId)?.title || "Event"}
+                Attendance Codes — {eventsAdmin?.find(e => e.id === attendanceEventId)?.title || "Event"}
               </h2>
               <div className="grid grid-cols-4 gap-4">
                 {attendanceCodes?.filter(c => c.status === 'unused').map((code) => (
