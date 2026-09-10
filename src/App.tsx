@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedAdminRoute } from "@/features/auth";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+import { Analytics } from "@vercel/analytics/react";
 import Index from "./pages/Index";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
@@ -70,6 +71,7 @@ const App = () => (
             </AuthProvider>
           </SettingsProvider>
         </BrowserRouter>
+        <Analytics />
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>
