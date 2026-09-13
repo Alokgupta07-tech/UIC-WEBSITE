@@ -1,9 +1,5 @@
 import { useState, useMemo } from "react";
-<<<<<<< HEAD
 import { Link, useSearchParams } from "react-router-dom";
-=======
-import { Link } from "react-router-dom";
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
 import { Layout } from "@/components/layout/Layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,12 +18,9 @@ import { Helmet } from "react-helmet-async";
 type EventFilter = "all" | "upcoming" | "past";
 
 const Events = () => {
-<<<<<<< HEAD
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryQuery = searchParams.get("category");
 
-=======
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<EventFilter>("upcoming");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -42,7 +35,6 @@ const Events = () => {
     queryFn: getCategoriesRaw,
   });
 
-<<<<<<< HEAD
   // Sync URL ?category= with selectedCategory state when categories load
   useMemo(() => {
     if (categories && categoryQuery) {
@@ -64,8 +56,6 @@ const Events = () => {
     }
   };
 
-=======
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
   const filteredEvents = useMemo(() => {
     if (!events) return [];
     return events.filter((event) => {
@@ -139,11 +129,7 @@ const Events = () => {
                 <Button
                   size="sm"
                   variant={selectedCategory === null ? "default" : "outline"}
-<<<<<<< HEAD
                   onClick={() => handleCategoryClick(null)}
-=======
-                  onClick={() => setSelectedCategory(null)}
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
                   className={selectedCategory === null ? "bg-gradient-to-r from-primary to-secondary" : ""}
                 >
                   All
@@ -153,11 +139,7 @@ const Events = () => {
                     key={cat.id}
                     size="sm"
                     variant={selectedCategory === cat.id ? "default" : "outline"}
-<<<<<<< HEAD
                   onClick={() => handleCategoryClick(cat.id)}
-=======
-                    onClick={() => setSelectedCategory(cat.id)}
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
                     style={selectedCategory === cat.id ? { backgroundColor: cat.color } : {}}
                   >
                     {cat.name}
@@ -275,11 +257,7 @@ const Events = () => {
                   variant="outline"
                   onClick={() => {
                     setSearch("");
-<<<<<<< HEAD
                     handleCategoryClick(null);
-=======
-                    setSelectedCategory(null);
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
                   }}
                 >
                   Clear Filters

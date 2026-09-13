@@ -1,9 +1,5 @@
 import { Link } from "react-router-dom";
-<<<<<<< HEAD
 import { Flame, MapPin, Instagram, Linkedin } from "lucide-react";
-=======
-import { Flame, Mail, MapPin, Phone, Instagram, Linkedin, Twitter, Youtube, MessageCircle } from "lucide-react";
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -38,11 +34,6 @@ export function Footer() {
   const socialLinks = [
     { icon: Instagram, href: settings?.social.instagram ?? "#", label: "Instagram" },
     { icon: Linkedin, href: settings?.social.linkedin ?? "#", label: "LinkedIn" },
-<<<<<<< HEAD
-=======
-    { icon: Twitter, href: "#", label: "Twitter" },
-    { icon: Youtube, href: settings?.social.youtube ?? "#", label: "YouTube" },
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
   ].filter((s) => s.href && s.href !== "#");
 
   const handleSubscribe = async (e: React.FormEvent) => {
@@ -98,20 +89,6 @@ export function Footer() {
                   <social.icon className="h-4 w-4" />
                 </a>
               ))}
-<<<<<<< HEAD
-=======
-              {settings?.social.whatsappCommunity && (
-                <a
-                  href={settings.social.whatsappCommunity}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors hover:bg-green-600 hover:text-white"
-                  aria-label="WhatsApp Community"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                </a>
-              )}
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
             </div>
           </div>
 
@@ -168,15 +145,6 @@ export function Footer() {
                 {isSubscribing ? "..." : "Go"}
               </Button>
             </form>
-<<<<<<< HEAD
-=======
-            {settings?.social.whatsappCommunity && (
-              <a href={settings.social.whatsappCommunity} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-2 text-sm text-green-600 hover:underline font-medium">
-                <MessageCircle className="h-4 w-4" />
-                Join our WhatsApp Community
-              </a>
-            )}
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
           </div>
         </div>
 

@@ -114,11 +114,7 @@ const Contact = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold">Email</h3>
-<<<<<<< HEAD
                         <p className="text-muted-foreground">club.igniter@srmap.edu.in</p>
-=======
-                        <p className="text-muted-foreground">igniters@college.edu</p>
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
                       </div>
                     </div>
 
@@ -134,19 +130,6 @@ const Contact = () => {
                         </p>
                       </div>
                     </div>
-<<<<<<< HEAD
-=======
-
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                        <Phone className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">Phone</h3>
-                        <p className="text-muted-foreground">+91 98765 43210</p>
-                      </div>
-                    </div>
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
                   </div>
 
                   {/* Social Links from settings */}

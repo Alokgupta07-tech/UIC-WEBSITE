@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { Instagram, Linkedin } from "lucide-react";
-=======
-import { Instagram, Linkedin, Youtube, MessageCircle } from "lucide-react";
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
 import { useSettings } from "@/contexts/SettingsContext";
 
 type LinkItem = {
@@ -15,11 +11,6 @@ type LinkItem = {
 const LINK_DEFS: LinkItem[] = [
   { key: "instagram", icon: Instagram, label: "Instagram" },
   { key: "linkedin", icon: Linkedin, label: "LinkedIn" },
-<<<<<<< HEAD
-=======
-  { key: "youtube", icon: Youtube, label: "YouTube" },
-  { key: "whatsapp", icon: MessageCircle, label: "WhatsApp Community" },
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
 ];
 
 function getHref(key: string, social: ReturnType<typeof useSettings>["settings"]["social"]): string | null {
@@ -28,13 +19,6 @@ function getHref(key: string, social: ReturnType<typeof useSettings>["settings"]
       return social.instagram;
     case "linkedin":
       return social.linkedin;
-<<<<<<< HEAD
-=======
-    case "youtube":
-      return social.youtube;
-    case "whatsapp":
-      return social.whatsappCommunity;
->>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
     default:
       return null;
   }
