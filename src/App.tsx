@@ -12,7 +12,13 @@ import Index from "./pages/Index";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import Team from "./pages/Team";
+<<<<<<< HEAD
+import Gallery from "./pages/Gallery";
+import CertifiedStudents from "./pages/CertifiedStudents";
+import Resources from "./pages/Resources";
+=======
 import Gallery from "./pages/Gallery";           // NEW — was Resources
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
@@ -53,7 +59,12 @@ const App = () => (
               <Route path="/events/:id" element={<EventDetail />} />
               <Route path="/team" element={<Team />} />
               <Route path="/gallery" element={<Gallery />} />
+<<<<<<< HEAD
+              <Route path="/certified-students" element={<CertifiedStudents />} />
+              <Route path="/resources" element={<Resources />} />
+=======
               <Route path="/resources" element={<Gallery />} /> {/* redirect old URL */}
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/auth" element={<Auth />} />

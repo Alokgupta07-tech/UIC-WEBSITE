@@ -12,10 +12,18 @@ import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
 import { getActiveTeam } from "@/services/team";
 import type { TeamMember } from "@/types";
+<<<<<<< HEAD
+import { TeamMemberDialog } from "@/components/team/TeamMemberDialog";
+=======
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
 
 const Team = () => {
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+<<<<<<< HEAD
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+=======
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
 
   const orgJsonLd = useOrganizationJsonLd();
   const breadcrumb = breadcrumbJsonLd([
@@ -137,7 +145,12 @@ const Team = () => {
               {filteredMembers.map((member) => (
                 <div
                   key={member.id}
+<<<<<<< HEAD
+                  onClick={() => setSelectedMember(member)}
+                  className="group overflow-hidden rounded-2xl border bg-card transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+=======
                   className="group overflow-hidden rounded-2xl border bg-card transition-all hover:border-primary/50 hover:shadow-lg"
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
                 >
                   {/* Avatar Section */}
                   <div className="relative bg-gradient-to-br from-primary/10 to-secondary/10 p-6 text-center">
@@ -166,6 +179,13 @@ const Team = () => {
                       <p className="text-xs text-muted-foreground">{member.department}</p>
                     )}
 
+<<<<<<< HEAD
+                    {/* Reduced details - Bio and Skills moved to Dialog */}
+                    <div className="mt-4 flex gap-2">
+                      <Button variant="secondary" size="sm" className="w-full text-xs">
+                        View Profile
+                      </Button>
+=======
                     {member.bio && (
                       <p className="mt-3 text-sm text-muted-foreground line-clamp-2">
                         {member.bio}
@@ -213,6 +233,7 @@ const Team = () => {
                           <ExternalLink className="h-4 w-4" />
                         </a>
                       )}
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
                     </div>
                   </div>
                 </div>
@@ -242,6 +263,15 @@ const Team = () => {
           )}
         </div>
       </section>
+<<<<<<< HEAD
+
+      <TeamMemberDialog
+        member={selectedMember}
+        isOpen={!!selectedMember}
+        onClose={() => setSelectedMember(null)}
+      />
+=======
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
     </Layout>
   );
 };

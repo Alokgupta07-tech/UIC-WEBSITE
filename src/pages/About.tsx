@@ -18,10 +18,18 @@ const values = [
 ];
 
 const milestones = [
+<<<<<<< HEAD
+  { year: "September 2025", event: "Approved & Established", description: "The club was officially approved and established on campus." },
+  { year: "October 2025", event: "Orientation", description: "Welcomed our first batch of students with a grand orientation." },
+  { year: "February 2026", event: "Skill Development Workshop", description: "Hosted a massive workshop with over 1200+ participants." },
+  { year: "April 2026", event: "Buildathon", description: "Our flagship event bringing together the brightest minds to build solutions." },
+  { year: "May 2026", event: "Closing Chapter - 1", description: "The End of the Beginning. Celebrating our growth to 1200+ community members." },
+=======
   { year: "2023", event: "Club Founded", description: "Started as a small group of 10 passionate students" },
   { year: "2023", event: "First Hackathon", description: "Organized our first campus hackathon with 100+ participants" },
   { year: "2024", event: "Unstop Partnership", description: "Became an official Unstop campus chapter" },
   { year: "2024", event: "50+ Members", description: "Grew to over 50 active members across departments" },
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
 ];
 
 const About = () => {

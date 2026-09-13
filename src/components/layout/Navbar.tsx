@@ -10,7 +10,13 @@ const navLinks = [
   { name: "Home",    href: "/" },
   { name: "Events",  href: "/events" },
   { name: "Team",    href: "/team" },
+<<<<<<< HEAD
+  { name: "Gallery", href: "/gallery" },
+  { name: "Certified Students", href: "/certified-students" },
+  { name: "Resources", href: "/resources" },
+=======
   { name: "Gallery", href: "/gallery" },   // was "Resources"
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
   { name: "About",   href: "/about" },
   { name: "Contact", href: "/contact" },
 ];

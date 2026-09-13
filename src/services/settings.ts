@@ -9,7 +9,11 @@ export const DEFAULT_SOCIAL_LINKS: SocialLinks = {
 };
 
 export const DEFAULT_SETTINGS: SiteSettings = {
+<<<<<<< HEAD
+  communityMemberCount: 1200,
+=======
   communityMemberCount: 0,
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
   social: DEFAULT_SOCIAL_LINKS,
   siteUrl: null,
   siteOgImage: null,

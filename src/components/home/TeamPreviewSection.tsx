@@ -4,8 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
 import { getActiveTeam } from "@/services/team";
+<<<<<<< HEAD
+import { useState } from "react";
+import type { TeamMember } from "@/types";
+import { TeamMemberDialog } from "@/components/team/TeamMemberDialog";
 
 export function TeamPreviewSection() {
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  
+=======
+
+export function TeamPreviewSection() {
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
   const { data: teamMembers, isLoading } = useQuery({
     queryKey: ["team-members"],
     queryFn: getActiveTeam,
@@ -42,7 +52,12 @@ export function TeamPreviewSection() {
             {previewMembers.map((member) => (
               <div
                 key={member.id}
+<<<<<<< HEAD
+                onClick={() => setSelectedMember(member)}
+                className="group overflow-hidden rounded-2xl border bg-card p-6 text-center transition-all hover:border-primary/50 hover:shadow-lg cursor-pointer"
+=======
                 className="group overflow-hidden rounded-2xl border bg-card p-6 text-center transition-all hover:border-primary/50 hover:shadow-lg"
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
               >
                 {/* Avatar */}
                 <Avatar className="mx-auto mb-4 h-24 w-24 ring-4 ring-primary/10 transition-all group-hover:ring-primary/30">
@@ -66,6 +81,13 @@ export function TeamPreviewSection() {
                   )}
                 </div>
 
+<<<<<<< HEAD
+                <div className="mt-4 flex gap-2">
+                  <Button variant="secondary" size="sm" className="w-full text-xs">
+                    View Profile
+                  </Button>
+                </div>
+=======
                 {/* Skills */}
                 {member.skills && member.skills.length > 0 && (
                   <div className="mb-4 flex flex-wrap justify-center gap-1">
@@ -91,6 +113,7 @@ export function TeamPreviewSection() {
                     <Linkedin className="h-4 w-4" />
                   </a>
                 )}
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
               </div>
             ))}
           </div>
@@ -100,6 +123,15 @@ export function TeamPreviewSection() {
           </div>
         )}
       </div>
+<<<<<<< HEAD
+
+      <TeamMemberDialog
+        member={selectedMember}
+        isOpen={!!selectedMember}
+        onClose={() => setSelectedMember(null)}
+      />
+=======
+>>>>>>> 6d2dd8d5f58e58677c7bbdffdd45d1bd4d830670
     </section>
   );
 }
