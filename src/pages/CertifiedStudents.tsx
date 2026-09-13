@@ -17,6 +17,7 @@ const CertifiedStudents = () => {
       <Seo 
         title="Certified Students" 
         description="Meet our top achieving certified students"
+        path="/certified-students"
       />
 
       {/* Header */}

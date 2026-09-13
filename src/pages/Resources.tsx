@@ -49,6 +49,7 @@ const Resources = () => {
       <Seo 
         title="Resources" 
         description="Helpful resources for students and job seekers"
+        path="/resources"
       />
 
       {/* Header */}
