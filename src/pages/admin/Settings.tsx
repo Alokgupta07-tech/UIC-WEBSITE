@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { DEFAULT_SETTINGS, updateSettings } from "@/services/settings";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { DEFAULT_SETTINGS, updateSettings, getSettings } from "@/services/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,15 +10,15 @@ import { toast } from "sonner";
 
 export default function AdminSettings() {
   const qc = useQueryClient();
-  const settings = DEFAULT_SETTINGS;
-  const isLoading = false;
+  const { data: settings = DEFAULT_SETTINGS, isLoading } = useQuery({
+    queryKey: ["settings"],
+    queryFn: getSettings,
+  });
 
   const [form, setForm] = useState({
     communityMemberCount: 0,
     instagram: "",
     linkedin: "",
-    youtube: "",
-    whatsappCommunity: "",
     siteUrl: "",
     siteOgImage: "",
   });
@@ -29,8 +29,6 @@ export default function AdminSettings() {
         communityMemberCount: settings.communityMemberCount,
         instagram: settings.social.instagram || "",
         linkedin: settings.social.linkedin || "",
-        youtube: settings.social.youtube || "",
-        whatsappCommunity: settings.social.whatsappCommunity || "",
         siteUrl: settings.siteUrl || "",
         siteOgImage: settings.siteOgImage || "",
       });
@@ -40,7 +38,7 @@ export default function AdminSettings() {
   const updateMut = useMutation({
     mutationFn: (input: Parameters<typeof updateSettings>[0]) => updateSettings(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["site-settings"] });
+      qc.invalidateQueries({ queryKey: ["settings"] });
       toast.success("Settings saved successfully");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -51,8 +49,6 @@ export default function AdminSettings() {
       community_member_count: form.communityMemberCount,
       instagram: form.instagram || null,
       linkedin: form.linkedin || null,
-      youtube: form.youtube || null,
-      whatsapp_community: form.whatsappCommunity || null,
       site_url: form.siteUrl || null,
       site_og_image: form.siteOgImage || null,
     });
@@ -123,24 +119,6 @@ export default function AdminSettings() {
               id="soc-in"
               value={form.linkedin}
               onChange={(e) => setForm({ ...form, linkedin: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="soc-yt">YouTube</Label>
-            <Input
-              id="soc-yt"
-              value={form.youtube}
-              onChange={(e) => setForm({ ...form, youtube: e.target.value })}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="soc-wa">WhatsApp Community</Label>
-            <Input
-              id="soc-wa"
-              value={form.whatsappCommunity}
-              onChange={(e) => setForm({ ...form, whatsappCommunity: e.target.value })}
               className="mt-1"
             />
           </div>

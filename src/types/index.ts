@@ -78,8 +78,6 @@ export interface TeamMember {
 export interface SocialLinks {
   instagram: string | null;
   linkedin: string | null;
-  youtube: string | null;
-  whatsappCommunity: string | null;
 }
 
 export interface SiteSettings {
@@ -97,6 +95,19 @@ export interface ContactMessage {
   message: string;
   isRead: boolean | null;
   createdAt: string | null;
+}
+export interface CertifiedStudent {
+  id: string;
+  name: string;
+  department: string | null;
+  year: string | null;
+  achievement: string;
+  event: string;
+  position: string | null;
+  imageUrl: string | null;
+  linkedInUrl: string | null;
+  displayOrder: number;
+  isActive: boolean;
 }
 
 export interface Profile {

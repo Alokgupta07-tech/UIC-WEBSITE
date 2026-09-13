@@ -107,7 +107,7 @@ export default function AdminDashboard() {
     },
     {
       label: "Community Members",
-      value: settings.communityMemberCount > 0
+      value: settings.communityMemberCount >= 0
         ? `${settings.communityMemberCount}+`
         : "—",
       icon: UserCheck,

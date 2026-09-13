@@ -21,6 +21,7 @@ import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, Settings, Image, CalendarPlus, Users, Pencil, Shield, Eye, EyeOff, Crown, UploadCloud, Play, X, Folder, Ticket, Download, Printer, Award } from "lucide-react";
 import { CertificatesPanel } from "@/components/admin/CertificatesPanel";
+import { CertifiedStudentsPanel } from "@/components/admin/CertifiedStudentsPanel";
 import { getSettings, updateSettings } from "@/services/settings";
 import { getAllEventsAdmin } from "@/services/events";
 import { getAllTeamAdmin, createTeamMember, updateTeamMember, deleteTeamMember } from "@/services/team";
@@ -54,11 +55,9 @@ const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const [settingsForm, setSettingsForm] = useState({
-    communityMemberCount: "0",
+    communityMemberCount: "1200",
     instagram: "",
     linkedin: "",
-    youtube: "",
-    whatsappCommunity: "",
     siteUrl: "",
     siteOgImage: "",
   });
@@ -151,8 +150,6 @@ const Admin = () => {
       communityMemberCount: String(settings.communityMemberCount),
       instagram: settings.social.instagram ?? "",
       linkedin: settings.social.linkedin ?? "",
-      youtube: settings.social.youtube ?? "",
-      whatsappCommunity: settings.social.whatsappCommunity ?? "",
       siteUrl: settings.siteUrl ?? "",
       siteOgImage: settings.siteOgImage ?? "",
     });
@@ -160,12 +157,15 @@ const Admin = () => {
 
   const saveSettings = async () => {
     try {
+      const parsedCount = parseInt(settingsForm.communityMemberCount, 10);
+      if (isNaN(parsedCount) || parsedCount < 0) {
+        toast.error("Community Member Count must be a positive number.");
+        return;
+      }
       await updateSettings({
-        community_member_count: Number(settingsForm.communityMemberCount) || 0,
+        community_member_count: parsedCount,
         instagram: settingsForm.instagram || null,
         linkedin: settingsForm.linkedin || null,
-        youtube: settingsForm.youtube || null,
-        whatsapp_community: settingsForm.whatsappCommunity || null,
         site_url: settingsForm.siteUrl || null,
         site_og_image: settingsForm.siteOgImage || null,
       });
@@ -693,7 +693,13 @@ const Admin = () => {
             <TabsTrigger value="users"><Shield className="mr-2 h-4 w-4" />User Management</TabsTrigger>
             <TabsTrigger value="attendance"><Ticket className="mr-2 h-4 w-4" />Attendance</TabsTrigger>
             <TabsTrigger value="certificates"><Award className="mr-2 h-4 w-4" />Certificates</TabsTrigger>
+            <TabsTrigger value="certified-students"><Award className="mr-2 h-4 w-4" />Certified Students</TabsTrigger>
           </TabsList>
+
+          {/* Certified Students */}
+          <TabsContent value="certified-students">
+            <CertifiedStudentsPanel />
+          </TabsContent>
 
           {/* Certificates */}
           <TabsContent value="certificates">
@@ -731,18 +737,6 @@ const Admin = () => {
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">LinkedIn</CardTitle></CardHeader>
                 <CardContent>
                   <Input value={settingsForm.linkedin} onChange={(e) => setSettingsForm({ ...settingsForm, linkedin: e.target.value })} />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">YouTube</CardTitle></CardHeader>
-                <CardContent>
-                  <Input value={settingsForm.youtube} onChange={(e) => setSettingsForm({ ...settingsForm, youtube: e.target.value })} />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">WhatsApp Community</CardTitle></CardHeader>
-                <CardContent>
-                  <Input value={settingsForm.whatsappCommunity} onChange={(e) => setSettingsForm({ ...settingsForm, whatsappCommunity: e.target.value })} />
                 </CardContent>
               </Card>
             </div>

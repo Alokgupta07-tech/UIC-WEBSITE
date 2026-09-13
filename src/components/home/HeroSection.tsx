@@ -14,7 +14,7 @@ export function HeroSection() {
     {
       icon: Users,
       label: "Community Members",
-      value: `${settings?.communityMemberCount || 1200}+`,
+      value: `${settings?.communityMemberCount ?? 1200}+`,
     },
     { icon: Calendar, label: "Events Hosted", value: "25+" },
     { icon: Trophy, label: "Competitions Won", value: "15+" },

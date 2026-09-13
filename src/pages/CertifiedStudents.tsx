@@ -1,13 +1,19 @@
 import { Layout } from "@/components/layout/Layout";
 import { Seo } from "@/components/seo/Seo";
 import { Reveal } from "@/components/shared/Reveal";
-import { certifiedStudents } from "@/data/certifiedStudents";
-import { Award, GraduationCap, Trophy, MapPin, Linkedin } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getCertifiedStudents } from "@/services/certifiedStudents";
+import { Award, GraduationCap, Trophy, MapPin, Linkedin, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Helmet } from "react-helmet-async";
 
 const CertifiedStudents = () => {
+  const { data: certifiedStudents, isLoading } = useQuery({
+    queryKey: ["certified-students"],
+    queryFn: getCertifiedStudents,
+  });
+
   return (
     <Layout>
       <Helmet>
@@ -41,7 +47,11 @@ const CertifiedStudents = () => {
       {/* Grid */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          {certifiedStudents.length > 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center items-center py-24">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : certifiedStudents && certifiedStudents.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {certifiedStudents.map((student, index) => (
                 <Reveal key={student.id} delay={index * 0.1}>
