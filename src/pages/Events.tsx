@@ -14,7 +14,6 @@ import { Reveal } from "@/components/shared/Reveal";
 import { seoForPath } from "@/features/seo/seoConfig";
 import { isPast, format } from "date-fns";
 import { Helmet } from "react-helmet-async";
-import type { ClubEvent, EventCategory } from "@/types";
 
 type EventFilter = "all" | "upcoming" | "past";
 
@@ -27,12 +26,6 @@ const Events = () => {
     queryKey: ["events", filter],
     queryFn: getPublishedEvents,
   });
-
-  console.log("Events:", events, error);
-
-  if (error) {
-    console.error("Events Error:", error.message);
-  }
 
   const { data: categories } = useQuery({
     queryKey: ["event-categories"],
@@ -144,8 +137,11 @@ const Events = () => {
               ))}
             </div>
           ) : error ? (
-            <div className="rounded-2xl border bg-card p-12 text-center text-red-500">
-              <p>Failed to load events: {error.message}</p>
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-12 text-center">
+              <h3 className="mb-2 text-lg font-semibold">Could not load events</h3>
+              <p className="text-muted-foreground">
+                Something went wrong while fetching events. Please try again in a moment.
+              </p>
             </div>
           ) : filteredEvents.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -153,15 +149,15 @@ const Events = () => {
                 const isEventPast = isPast(new Date(event.eventDate));
                 return (
                   <Reveal key={event.id} delay={index * 0.05}>
-                    <div className="group overflow-hidden rounded-2xl border bg-card transition-all hover:border-primary/50 hover:shadow-lg">
+                    <div className="card-hover group h-full overflow-hidden rounded-2xl border bg-card">
                       {/* Event Image */}
                       <Link to={`/events/${event.id}`} className="block">
-                        <div className="relative h-44 bg-gradient-to-br from-primary/20 to-secondary/20">
+                        <div className="relative h-44 overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20">
                           {event.bannerImage && (
                             <img
                               src={event.bannerImage}
                               alt={event.title}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-105"
                               loading="lazy"
                             />
                           )}

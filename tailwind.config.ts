@@ -96,6 +96,24 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        /* Decorative hero blobs — transform/opacity only so they stay on the
+           compositor and never trigger layout. */
+        "blob-drift": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)" },
+          "33%": { transform: "translate3d(4%, -6%, 0) scale(1.08)" },
+          "66%": { transform: "translate3d(-3%, 5%, 0) scale(0.95)" },
+        },
+        "blob-drift-alt": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)" },
+          "50%": { transform: "translate3d(-5%, -4%, 0) scale(1.12)" },
+        },
+        /* Scanning line inside the QR camera frame. */
+        "scan-line": {
+          "0%": { transform: "translateY(0%)", opacity: "0" },
+          "12%": { opacity: "1" },
+          "88%": { opacity: "1" },
+          "100%": { transform: "translateY(1000%)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -104,6 +122,10 @@ export default {
         "slide-in": "slide-in 0.3s ease-out",
         "scale-in": "scale-in 0.3s ease-out",
         shimmer: "shimmer 2s infinite linear",
+        "blob-slow": "blob-drift 22s ease-in-out infinite",
+        "blob-slower": "blob-drift-alt 28s ease-in-out infinite",
+        "blob-slowest": "blob-drift 34s ease-in-out infinite reverse",
+        "scan-line": "scan-line 2.6s ease-in-out infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

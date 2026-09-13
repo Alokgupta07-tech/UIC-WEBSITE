@@ -1,9 +1,10 @@
-import { motion } from "framer-motion";
+import { motion, type TargetAndTransition } from "framer-motion";
 import type { ReactNode } from "react";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 
 type RevealVariant = "fade-up" | "fade-in" | "slide-left" | "scale";
 
-const variants: Record<RevealVariant, object> = {
+const variants: Record<RevealVariant, TargetAndTransition> = {
   "fade-up": { opacity: 0, y: 30 },
   "fade-in": { opacity: 0 },
   "slide-left": { opacity: 0, x: -30 },
@@ -18,7 +19,13 @@ interface RevealProps {
   once?: boolean;
 }
 
-/** Wraps children with a Framer Motion viewport-reveal animation. */
+/**
+ * Wraps children with a Framer Motion viewport-reveal animation.
+ *
+ * `once` defaults to true so the animation does not re-run on every scroll pass.
+ * When the user prefers reduced motion the content renders in its final state
+ * with no transition at all.
+ */
 export function Reveal({
   children,
   variant = "fade-up",
@@ -26,6 +33,12 @@ export function Reveal({
   className,
   once = true,
 }: RevealProps) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
   return (
     <motion.div
       className={className}

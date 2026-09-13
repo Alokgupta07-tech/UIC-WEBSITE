@@ -86,6 +86,22 @@ export const ROUTE_SEO: Record<string, Omit<PageSeo, "path">> = {
     description: "Your Unstop Igniters Club profile.",
     indexable: false,
   },
+  "/dashboard": {
+    title: withSuffix("Dashboard"),
+    description:
+      "Your Unstop Igniters Club member dashboard — events, attendance, certificates and QR certificate verification.",
+    indexable: false,
+  },
+  "/attendance": {
+    title: withSuffix("Mark Attendance"),
+    description: "Confirm your attendance at an Unstop Igniters Club event.",
+    indexable: false,
+  },
+  "/verify/certificate": {
+    title: withSuffix("Verify Certificate"),
+    description:
+      "Verify the authenticity of a certificate issued by the Unstop Igniters Club at SRM University AP.",
+  },
 };
 
 /** Resolve the SEO config for a pathname; falls back to defaults. */

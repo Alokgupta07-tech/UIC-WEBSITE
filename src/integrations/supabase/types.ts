@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      certificates: {
+        Row: {
+          certificate_file_url: string | null
+          certificate_number: string
+          certificate_type: string
+          created_at: string
+          created_by: string | null
+          event_id: string
+          id: string
+          issue_date: string
+          organizer_name: string | null
+          organizer_organization: string
+          recipient_email: string | null
+          recipient_name: string
+          recipient_user_id: string | null
+          signer_designation: string | null
+          signer_name: string | null
+          signer_signature_url: string | null
+          status: string
+          updated_at: string
+          verification_token: string
+        }
+        Insert: {
+          certificate_file_url?: string | null
+          certificate_number?: string
+          certificate_type?: string
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          id?: string
+          issue_date?: string
+          organizer_name?: string | null
+          organizer_organization?: string
+          recipient_email?: string | null
+          recipient_name: string
+          recipient_user_id?: string | null
+          signer_designation?: string | null
+          signer_name?: string | null
+          signer_signature_url?: string | null
+          status?: string
+          updated_at?: string
+          verification_token?: string
+        }
+        Update: {
+          certificate_file_url?: string | null
+          certificate_number?: string
+          certificate_type?: string
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          id?: string
+          issue_date?: string
+          organizer_name?: string | null
+          organizer_organization?: string
+          recipient_email?: string | null
+          recipient_name?: string
+          recipient_user_id?: string | null
+          signer_designation?: string | null
+          signer_name?: string | null
+          signer_signature_url?: string | null
+          status?: string
+          updated_at?: string
+          verification_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificates_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_codes: {
         Row: {
           code: string
@@ -536,6 +610,35 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      verify_certificate: {
+        Args: {
+          p_token: string
+        }
+        Returns: {
+          verification_status: string
+          certificate_number: string | null
+          certificate_type: string | null
+          recipient_name: string | null
+          event_title: string | null
+          event_description: string | null
+          event_date: string | null
+          event_venue: string | null
+          event_is_online: boolean | null
+          event_category: string | null
+          organizer_name: string | null
+          organizer_organization: string | null
+          signer_name: string | null
+          signer_designation: string | null
+          signer_signature_url: string | null
+          certificate_file_url: string | null
+          issue_date: string | null
+          verified_at: string
+        }[]
+      }
+      claim_my_certificates: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
     }
     Enums: {
