@@ -19,6 +19,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";               // NEW
 import Attendance from "./pages/Attendance";
+import VerifyCertificate from "./pages/VerifyCertificate";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -58,6 +59,10 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              {/* Public certificate verification — reachable without signing in,
+                  either from a QR code or a shared verification link. */}
+              <Route path="/verify/certificate/:token" element={<VerifyCertificate />} />
+              <Route path="/verify/certificate" element={<VerifyCertificate />} />
               <Route
                 path="/admin"
                 element={

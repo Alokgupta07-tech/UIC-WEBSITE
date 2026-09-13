@@ -53,26 +53,24 @@ export function FeaturesSection() {
         </div>
         </Reveal>
 
-        {/* Features Grid */}
+        {/* Features Grid — cards reveal in sequence rather than all at once. */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
-            <div
-              key={feature.title}
-              className="group relative rounded-2xl border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              {/* Icon */}
-              <div className="mb-4 inline-flex rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 p-3">
-                <feature.icon className="h-6 w-6 text-primary" />
+            <Reveal key={feature.title} variant="fade-up" delay={index * 0.07}>
+              <div className="card-hover group relative h-full rounded-2xl border bg-card p-6">
+                {/* Icon */}
+                <div className="mb-4 inline-flex rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 p-3 transition-transform duration-200 motion-safe:group-hover:scale-105">
+                  <feature.icon className="h-6 w-6 text-primary" aria-hidden />
+                </div>
+
+                {/* Content */}
+                <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
+                <p className="text-sm text-muted-foreground">{feature.description}</p>
+
+                {/* Hover wash */}
+                <div className="pointer-events-none absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br from-primary/5 to-secondary/5 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               </div>
-
-              {/* Content */}
-              <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">{feature.description}</p>
-
-              {/* Hover Effect */}
-              <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br from-primary/5 to-secondary/5 opacity-0 transition-opacity group-hover:opacity-100" />
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>

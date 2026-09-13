@@ -59,10 +59,16 @@ export function Navbar() {
               <Link
                 key={link.href}
                 to={link.href}
+                aria-current={isActive(link.href) ? "page" : undefined}
                 className={cn(
-                  "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                  "relative px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                  // Underline grows from the centre on hover and stays put for the
+                  // active route. It sits on a pseudo-element, so nothing shifts.
+                  "after:absolute after:bottom-1 after:left-1/2 after:h-0.5 after:w-0 after:-translate-x-1/2",
+                  "after:rounded-full after:bg-gradient-to-r after:from-primary after:to-secondary",
+                  "after:transition-[width] after:duration-200 hover:after:w-1/2",
                   isActive(link.href)
-                    ? "bg-accent text-accent-foreground"
+                    ? "bg-accent text-accent-foreground after:w-1/2"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
               >

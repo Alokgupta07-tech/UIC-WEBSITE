@@ -19,7 +19,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, Settings, Image, CalendarPlus, Users, Pencil, Shield, Eye, EyeOff, Crown, UploadCloud, Play, X, Folder, Ticket, Download, Printer } from "lucide-react";
+import { Trash2, Plus, Settings, Image, CalendarPlus, Users, Pencil, Shield, Eye, EyeOff, Crown, UploadCloud, Play, X, Folder, Ticket, Download, Printer, Award } from "lucide-react";
+import { CertificatesPanel } from "@/components/admin/CertificatesPanel";
 import { getSettings, updateSettings } from "@/services/settings";
 import { getAllEventsAdmin } from "@/services/events";
 import { getAllTeamAdmin, createTeamMember, updateTeamMember, deleteTeamMember } from "@/services/team";
@@ -691,7 +692,13 @@ const Admin = () => {
             <TabsTrigger value="gallery"><Image className="mr-2 h-4 w-4" />Gallery</TabsTrigger>
             <TabsTrigger value="users"><Shield className="mr-2 h-4 w-4" />User Management</TabsTrigger>
             <TabsTrigger value="attendance"><Ticket className="mr-2 h-4 w-4" />Attendance</TabsTrigger>
+            <TabsTrigger value="certificates"><Award className="mr-2 h-4 w-4" />Certificates</TabsTrigger>
           </TabsList>
+
+          {/* Certificates */}
+          <TabsContent value="certificates">
+            <CertificatesPanel createdBy={user?.id ?? null} />
+          </TabsContent>
 
           {/* Site Settings */}
           <TabsContent value="settings">
