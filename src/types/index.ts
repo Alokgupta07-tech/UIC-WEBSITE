@@ -9,11 +9,15 @@ export interface AttendanceCode {
   id: string;
   eventId: string;
   codeHash: string;
+  /** Plaintext display form of the code — only returned to admins via RLS. */
+  codeDisplay?: string | null;
   validFrom: string;
   validUntil: string;
   isActive: boolean;
   createdBy: string | null;
   createdAt: string;
+  revokedAt?: string | null;
+  revokedBy?: string | null;
 }
 
 export interface AttendanceRecord {

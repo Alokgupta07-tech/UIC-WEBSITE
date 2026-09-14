@@ -168,9 +168,29 @@ async function getMyRegistrations(): Promise<RegistrationRecord[]> {
 
 type AttendanceRecord = { eventId: string; redeemedAt: string | null };
 
-/** Attendance codes this member redeemed at an event. RLS restricts rows to
- *  used codes carrying the caller's verified email. */
+/** Attendance for this member from the verified `attendance` table (one row
+ *  per (event, user) created exclusively by the mark_attendance RPC, RLS
+ *  restricted to the caller). Falls back to the legacy `attendance_codes`
+ *  desk-redemption table if the new table is not installed. */
 async function getMyAttendance(): Promise<AttendanceRecord[]> {
+  try {
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("event_id, marked_at");
+
+    if (error) throw error;
+
+    return (data ?? []).map((row) => ({
+      eventId: row.event_id,
+      redeemedAt: row.marked_at ?? null,
+    }));
+  } catch (error) {
+    if (!isMissingTableError(error)) {
+      console.error("Error reading member attendance:", error);
+    }
+  }
+
+  // Legacy source: codes redeemed at the venue with this member's email.
   try {
     const { data, error } = await supabase
       .from("attendance_codes")
