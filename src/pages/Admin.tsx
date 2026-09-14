@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -1248,59 +1247,6 @@ const Admin = () => {
             <AttendancePanel eventsAdmin={eventsAdmin} />
           </TabsContent>
 
-          {/* Non-blocking delete-code confirm dialog */}
-          <AlertDialog open={!!deleteCodeTarget} onOpenChange={(open) => { if (!open) setDeleteCodeTarget(null); }}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Code</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Delete code <span className="font-mono font-bold">{deleteCodeTarget?.code}</span>?
-                  {deleteCodeTarget?.status === "used" && " This code has already been redeemed."}
-                  {" "}This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => {
-                    if (deleteCodeTarget) {
-                      deleteCodeMutation.mutate(deleteCodeTarget.id);
-                      setDeleteCodeTarget(null);
-                    }
-                  }}
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          {/* Non-blocking delete-all confirm dialog */}
-          <AlertDialog open={deleteAllConfirmOpen} onOpenChange={setDeleteAllConfirmOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete All Codes</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Delete all <span className="font-bold">{attendanceCodes?.length ?? 0}</span> codes
-                  for <span className="font-bold">{eventsAdmin?.find(e => e.id === attendanceEventId)?.title ?? "this event"}</span>?
-                  Any photocopies already handed out will stop working. This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => {
-                    deleteAllCodesMutation.mutate();
-                    setDeleteAllConfirmOpen(false);
-                  }}
-                >
-                  Delete All
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </Tabs>
       </div>
     </Layout>
