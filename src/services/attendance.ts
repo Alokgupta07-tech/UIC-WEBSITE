@@ -20,6 +20,11 @@ export async function generateAttendanceCode(
 
   if (error) {
     console.error("Error generating attendance code:", error);
+    if (error.code === "PGRST202" || error.message?.includes("Could not find the function")) {
+      throw new Error(
+        "The attendance database functions are out of date. Ask an admin to run the latest supabase/migrations/20260914*.sql files in the Supabase SQL editor."
+      );
+    }
     if (error.message?.includes("invalid_window")) {
       throw new Error("Validity must be between 1 and 72 hours.");
     }
@@ -120,6 +125,29 @@ export async function markAttendance(
 }
 
 export async function getEventAttendance(eventId: string): Promise<AttendanceRecord[]> {
+  // Preferred path: SECURITY DEFINER RPC that joins auth.users server-side.
+  // (PostgREST cannot embed auth.users directly — the auth schema is not
+  // exposed, which is why the old FK-embed query returned 400.)
+  try {
+    const { data, error } = await supabase.rpc("get_event_attendance", {
+      p_event_id: eventId,
+    });
+    if (error) throw error;
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      eventId,
+      userId: row.user_id,
+      codeId: row.code_id,
+      status: row.status as "verified" | "revoked",
+      markedAt: row.marked_at,
+      userEmail: row.email ?? undefined,
+      userName: row.full_name || undefined,
+    }));
+  } catch (rpcError) {
+    console.warn("get_event_attendance RPC unavailable, falling back to direct query", rpcError);
+  }
+
+  // Fallback: direct query (works if auth schema embedding is ever enabled).
   const { data, error } = await supabase
     .from("attendance")
     .select("*, auth_users:user_id(email, raw_user_meta_data)")
