@@ -52,7 +52,7 @@ import {
 import { CertificateStatusBadge } from "@/components/dashboard/StatusBadge";
 import { CertificateQrPreview } from "@/components/admin/CertificateQrPreview";
 import { getAllEventsAdmin } from "@/services/events";
-import { getAttendanceCodes } from "@/services/attendance";
+import { getEventAttendance } from "@/services/attendance";
 import {
   buildVerificationUrl,
   certificatesToCSV,
@@ -169,12 +169,12 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
   const issueForAttendees = useMutation({
     mutationFn: async () => {
       if (!eventId) throw new Error("Select an event first.");
-      const codes = await getAttendanceCodes(eventId);
-      const attendees = codes
-        .filter((code) => code.status === "used" && code.participantName)
-        .map((code) => ({
-          name: code.participantName as string,
-          email: code.participantEmail ?? null,
+      const records = await getEventAttendance(eventId);
+      const attendees = records
+        .filter((record) => record.status === "verified" && record.userName)
+        .map((record) => ({
+          name: record.userName as string,
+          email: record.userEmail ?? null,
         }));
 
       if (attendees.length === 0) {

@@ -22,14 +22,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, Settings, Image, CalendarPlus, Users, Pencil, Shield, Eye, EyeOff, Crown, UploadCloud, Play, X, Folder, Ticket, Download, Printer, Award } from "lucide-react";
 import { CertificatesPanel } from "@/components/admin/CertificatesPanel";
 import { CertifiedStudentsPanel } from "@/components/admin/CertifiedStudentsPanel";
+import { AttendancePanel } from "@/components/admin/AttendancePanel";
 import { getSettings, updateSettings } from "@/services/settings";
 import { getAllEventsAdmin } from "@/services/events";
 import { getAllTeamAdmin, createTeamMember, updateTeamMember, deleteTeamMember } from "@/services/team";
 import { getAdmins, getAllUsers, promoteToAdmin, removeAdmin } from "@/services/userManagement";
 import { getGallery, createGalleryItem, deleteGalleryItem, uploadFile, detectMediaType } from "@/services/gallery";
-import { getAttendanceCodes, generateAttendanceCodes, codesToCSV, deleteAttendanceCode, deleteAllAttendanceCodes } from "@/services/attendance";
 import { isSuperAdmin } from "@/config/superAdmin";
-import type { TeamMember, ClubEvent, EventGalleryItem, MediaType, AttendanceCode } from "@/types";
+import type { TeamMember, ClubEvent, EventGalleryItem, MediaType } from "@/types";
 import type { TeamInput } from "@/services/team";
 
 // Inline SVG placeholder shown when an image URL fails to load.
@@ -551,103 +551,7 @@ const Admin = () => {
       toast.error(e instanceof Error ? e.message : "Failed to remove admin."),
   });
 
-  // --- Attendance ---
-  const [attendanceEventId, setAttendanceEventId] = useState("");
-  const [attendanceCount, setAttendanceCount] = useState("50");
-  const [attendancePage, setAttendancePage] = useState(0);
-  const ATTENDANCE_PAGE_SIZE = 50;
-  // Non-blocking confirm dialogs (replaces window.confirm to fix INP)
-  const [deleteCodeTarget, setDeleteCodeTarget] = useState<AttendanceCode | null>(null);
-  const [deleteAllConfirmOpen, setDeleteAllConfirmOpen] = useState(false);
-
-  const { data: attendanceCodes, isLoading: attendanceLoading } = useQuery({
-    queryKey: ["attendance-codes", attendanceEventId],
-    queryFn: () => getAttendanceCodes(attendanceEventId),
-    enabled: isAdmin && !!attendanceEventId,
-  });
-
-  // Reset page when event changes
-  const handleAttendanceEventChange = (eventId: string) => {
-    setAttendanceEventId(eventId);
-    setAttendancePage(0);
-  };
-
-  const attendancePageCount = Math.ceil((attendanceCodes?.length ?? 0) / ATTENDANCE_PAGE_SIZE);
-  const attendancePagedCodes = attendanceCodes?.slice(
-    attendancePage * ATTENDANCE_PAGE_SIZE,
-    (attendancePage + 1) * ATTENDANCE_PAGE_SIZE
-  ) ?? [];
-
-  const generateCodesMutation = useMutation({
-    mutationFn: () => generateAttendanceCodes(attendanceEventId, parseInt(attendanceCount, 10)),
-    onSuccess: () => {
-      toast.success("Attendance codes generated!");
-      queryClient.invalidateQueries({ queryKey: ["attendance-codes", attendanceEventId] });
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to generate codes"),
-  });
-
-  const deleteCodeMutation = useMutation({
-    mutationFn: (id: string) => deleteAttendanceCode(id),
-    onSuccess: () => {
-      toast.success("Code deleted.");
-      queryClient.invalidateQueries({ queryKey: ["attendance-codes", attendanceEventId] });
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to delete code."),
-  });
-
-  const deleteAllCodesMutation = useMutation({
-    mutationFn: () => deleteAllAttendanceCodes(attendanceEventId),
-    onSuccess: () => {
-      toast.success("All codes deleted.");
-      setAttendancePage(0);
-      queryClient.invalidateQueries({ queryKey: ["attendance-codes", attendanceEventId] });
-    },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Failed to delete codes."),
-  });
-
-  // Open dialog immediately (non-blocking) so browser can paint before any work
-  const confirmDeleteCode = (code: AttendanceCode) => {
-    setDeleteCodeTarget(code);
-  };
-
-  const confirmDeleteAllCodes = () => {
-    if ((attendanceCodes?.length ?? 0) === 0) return;
-    setDeleteAllConfirmOpen(true);
-  };
-
-  const downloadCodesCSV = () => {
-    if (!attendanceCodes || !attendanceCodes.length) return;
-    const event = eventsAdmin?.find(e => e.id === attendanceEventId);
-    const title = event?.title || "event";
-    const csvStr = codesToCSV(attendanceCodes, title);
-    const blob = new Blob([csvStr], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-codes.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handlePrintCodes = () => {
-    window.print();
-  };
-
-  const attendanceStats = useMemo(() => {
-    if (!attendanceCodes) return { total: 0, used: 0, unused: 0 };
-    return attendanceCodes.reduce(
-      (acc, code) => {
-        acc.total++;
-        if (code.status === "used") acc.used++;
-        else acc.unused++;
-        return acc;
-      },
-      { total: 0, used: 0, unused: 0 }
-    );
-  }, [attendanceCodes]);
+  // --- Attendance (Moved to AttendancePanel) ---
 
   // Whether the currently logged-in user is the super admin
   const currentUserIsSuperAdmin = isSuperAdmin(user?.email);

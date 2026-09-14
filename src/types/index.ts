@@ -8,13 +8,21 @@ export type AttendanceCodeStatus = "unused" | "used";
 export interface AttendanceCode {
   id: string;
   eventId: string;
-  code: string;
-  status: AttendanceCodeStatus;
-  participantName: string | null;
-  participantEmail: string | null;
-  redeemedAt: string | null;
+  codeHash: string;
+  validFrom: string;
+  validUntil: string;
+  isActive: boolean;
   createdBy: string | null;
   createdAt: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  eventId: string;
+  userId: string;
+  codeId: string;
+  status: "verified" | "revoked";
+  markedAt: string;
 }
 
 export type MediaType = "image" | "video";

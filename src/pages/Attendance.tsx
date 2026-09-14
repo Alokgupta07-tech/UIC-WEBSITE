@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
@@ -7,21 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, LogIn } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getPublishedEvents } from "@/services/events";
-import { verifyAttendanceCode } from "@/services/attendance";
+import { markAttendance } from "@/services/attendance";
 
 const Attendance = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const preselectedEventId = searchParams.get("event") || "";
 
   const [eventId, setEventId] = useState(preselectedEventId);
   const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
 
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{ success: boolean; message: string; status: string } | null>(null);
 
   const { data: events, isLoading: eventsLoading } = useQuery({
     queryKey: ["published-events"],
@@ -42,15 +41,17 @@ const Attendance = () => {
     mutationFn: () => {
       if (!eventId) throw new Error("Please select an event.");
       if (!code.trim()) throw new Error("Please enter your attendance code.");
-      if (!name.trim()) throw new Error("Please enter your name.");
-      if (!email.trim()) throw new Error("Please enter your email.");
-      return verifyAttendanceCode(eventId, code.trim(), name.trim(), email.trim());
+      return markAttendance(eventId, code.trim());
     },
     onSuccess: (data) => {
       setResult(data);
     },
     onError: (error: unknown) => {
-      setResult({ success: false, message: error instanceof Error ? error.message : "An error occurred." });
+      setResult({ 
+        success: false, 
+        message: error instanceof Error ? error.message : "An error occurred.", 
+        status: "error" 
+      });
     },
   });
 
@@ -90,16 +91,26 @@ const Attendance = () => {
                 )}
                 <p className="text-muted-foreground">{result.message}</p>
                 
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={() => {
-                    setResult(null);
-                    setCode("");
-                  }}
-                >
-                  Mark another code
-                </Button>
+                {result.status === "unauthorized" ? (
+                  <Button 
+                    className="mt-4 bg-gradient-to-r from-primary to-secondary"
+                    onClick={() => navigate("/auth")}
+                  >
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Sign in to mark attendance
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => {
+                      setResult(null);
+                      setCode("");
+                    }}
+                  >
+                    Try again
+                  </Button>
+                )}
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -137,29 +148,6 @@ const Attendance = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input 
-                    id="name" 
-                    placeholder="John Doe" 
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input 
-                    id="email" 
-                    type="email"
-                    placeholder="john@example.com" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-
                 <Button 
                   type="submit" 
                   className="w-full bg-gradient-to-r from-primary to-secondary mt-2"
@@ -178,3 +166,4 @@ const Attendance = () => {
 };
 
 export default Attendance;
+
