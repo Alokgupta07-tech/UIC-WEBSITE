@@ -193,7 +193,7 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public.mark_attendance(uuid, text) FROM public;
-GRANT EXECUTE ON FUNCTION public.mark_attendance(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.mark_attendance(uuid, text) TO anon, authenticated;
 
 
 -- Admin: Revoke attendance code
