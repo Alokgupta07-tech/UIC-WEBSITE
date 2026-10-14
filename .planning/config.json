@@ -1,0 +1,13 @@
+{
+  "project": "uic-website",
+  "initialized": "2026-09-14",
+  "source": "onboard",
+  "flags": {
+    "fast": true
+  },
+  "workflow": {
+    "autoCommit": false,
+    "requireApproval": true,
+    "parallelExecution": false
+  }
+}

@@ -1,0 +1,22 @@
+# Replace uic.example.com with your production domain.
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: *
+Allow: /
+
+# Authenticated / private areas should not be indexed.
+Disallow: /admin
+Disallow: /profile
+Disallow: /auth
+
+Sitemap: https://uic.example.com/sitemap.xml
