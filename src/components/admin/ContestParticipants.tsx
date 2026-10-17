@@ -6,7 +6,9 @@ import { useState } from "react";
 import { 
   useAllContestParticipants, 
   useUpdateParticipantVerification,
-  useImportUnstopCSV 
+  useImportUnstopCSV,
+  useAddManualParticipant,
+  useDeleteParticipant
 } from "@/hooks/useContest";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +47,10 @@ import {
   Upload, 
   Search,
   UserPlus,
-  Filter
+  Filter,
+  Trash2,
+  Download,
+  Plus
 } from "lucide-react";
 import { format } from "date-fns";
 import type { VerificationStatus } from "@/types";
@@ -58,6 +63,8 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
   const { data: participants, isLoading } = useAllContestParticipants(eventId);
   const updateVerification = useUpdateParticipantVerification();
   const importCSV = useImportUnstopCSV();
+  const addParticipantMutation = useAddManualParticipant();
+  const deleteParticipantMutation = useDeleteParticipant();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<VerificationStatus | "all">("all");
@@ -66,6 +73,70 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
   const [verificationNote, setVerificationNote] = useState("");
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [csvFile, setCSVFile] = useState<File | null>(null);
+
+  // Manual Add state
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newUnstopId, setNewUnstopId] = useState("");
+  const [newStatus, setNewStatus] = useState<VerificationStatus>("verified");
+  const [newNote, setNewNote] = useState("");
+
+  const handleAddParticipant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim() || !newEmail.trim()) {
+      return;
+    }
+
+    await addParticipantMutation.mutateAsync({
+      eventId,
+      participantName: newName,
+      participantEmail: newEmail,
+      unstopRegistrationId: newUnstopId.trim() || undefined,
+      verificationStatus: newStatus,
+      note: newNote.trim() || undefined,
+    });
+
+    setShowAddDialog(false);
+    setNewName("");
+    setNewEmail("");
+    setNewUnstopId("");
+    setNewNote("");
+  };
+
+  const handleDelete = async (participant: any) => {
+    if (!confirm(`Are you sure you want to remove ${participant.participantName} from this contest?`)) {
+      return;
+    }
+    await deleteParticipantMutation.mutateAsync({
+      participantId: participant.id,
+      eventId,
+    });
+  };
+
+  const handleExportCSV = () => {
+    if (!participants || participants.length === 0) return;
+
+    const headers = ["Name", "Email", "Unstop ID", "Status", "Source", "Verified At", "Admin Note"];
+    const rows = participants.map((p) => [
+      `"${p.participantName.replace(/"/g, '""')}"`,
+      `"${p.participantEmail.replace(/"/g, '""')}"`,
+      `"${(p.unstopRegistrationId || "").replace(/"/g, '""')}"`,
+      p.verificationStatus,
+      p.verificationSource,
+      p.verifiedAt || "",
+      `"${(p.rejectionOrAdminNote || "").replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `contest_participants_${eventId}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const filteredParticipants = participants?.filter((p) => {
     const matchesSearch = 
@@ -155,17 +226,27 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle>Participant Management</CardTitle>
               <CardDescription>
-                Verify Unstop registrations and manage participant access
+                Verify Unstop registrations, add participants, and manage access
               </CardDescription>
             </div>
-            <Button onClick={() => setShowCSVUpload(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import CSV
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" onClick={() => setShowAddDialog(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Add Participant
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowCSVUpload(true)} className="gap-1.5">
+                <Upload className="h-4 w-4" />
+                Import CSV
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleExportCSV} disabled={!participants || participants.length === 0} className="gap-1.5">
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -279,13 +360,24 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
                           : "-"}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleVerify(participant)}
-                        >
-                          Manage
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleVerify(participant)}
+                          >
+                            Manage
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                            onClick={() => handleDelete(participant)}
+                            title="Delete participant"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -294,7 +386,7 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       {searchQuery || filterStatus !== "all"
                         ? "No participants match your filters"
-                        : "No participants yet. Import a CSV to get started."}
+                        : "No participants yet. Import a CSV or click 'Add Participant' to get started."}
                     </TableCell>
                   </TableRow>
                 )}
@@ -303,6 +395,87 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Manual Add Participant Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <form onSubmit={handleAddParticipant}>
+            <DialogHeader>
+              <DialogTitle>Add Contest Participant</DialogTitle>
+              <DialogDescription>
+                Manually register a participant for this contest
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="part-name">Full Name *</Label>
+                <Input
+                  id="part-name"
+                  required
+                  placeholder="e.g., Alok Kumar"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="part-email">Email Address *</Label>
+                <Input
+                  id="part-email"
+                  type="email"
+                  required
+                  placeholder="e.g., student@srmap.edu.in"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="part-unstop">Unstop Registration ID (Optional)</Label>
+                <Input
+                  id="part-unstop"
+                  placeholder="e.g., UNSTOP-109283"
+                  value={newUnstopId}
+                  onChange={(e) => setNewUnstopId(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="part-status">Initial Verification Status</Label>
+                <Select value={newStatus} onValueChange={(val: any) => setNewStatus(val)}>
+                  <SelectTrigger id="part-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="verified">Verified (Can submit & rate immediately)</SelectItem>
+                    <SelectItem value="pending">Pending (Awaiting approval)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="part-note">Admin Note (Optional)</Label>
+                <Input
+                  id="part-note"
+                  placeholder="e.g., Verified via Discord registration"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={addParticipantMutation.isPending}>
+                {addParticipantMutation.isPending ? "Adding..." : "Add Participant"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Verification Dialog */}
       <Dialog open={showVerifyDialog} onOpenChange={setShowVerifyDialog}>

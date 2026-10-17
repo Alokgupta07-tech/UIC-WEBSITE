@@ -348,3 +348,94 @@ export function useImportUnstopCSV() {
     },
   });
 }
+
+export function useAllContestRatings(eventId: string) {
+  return useQuery({
+    queryKey: ["contest", "allRatings", eventId],
+    queryFn: () => contestService.getAllContestRatings(eventId),
+    enabled: !!eventId,
+  });
+}
+
+export function useAddManualParticipant() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: (params: {
+      eventId: string;
+      participantName: string;
+      participantEmail: string;
+      unstopRegistrationId?: string;
+      verificationStatus?: VerificationStatus;
+      note?: string;
+    }) =>
+      contestService.addManualParticipant({
+        ...params,
+        adminId: user?.id,
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: contestKeys.participants(variables.eventId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: contestKeys.all,
+      });
+      toast.success("Participant registered successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to add participant");
+    },
+  });
+}
+
+export function useDeleteParticipant() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ participantId, eventId }: { participantId: string; eventId: string }) =>
+      contestService.deleteContestParticipant(participantId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: contestKeys.participants(variables.eventId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: contestKeys.all,
+      });
+      toast.success("Participant deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete participant");
+    },
+  });
+}
+
+export function useContestEventSettings(eventId: string) {
+  return useQuery({
+    queryKey: ["contest", "settings", eventId],
+    queryFn: () => contestService.getContestEventSettings(eventId),
+    enabled: !!eventId,
+  });
+}
+
+export function useUpdateContestEventSettings() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ eventId, settings }: { eventId: string; settings: Record<string, unknown> }) =>
+      contestService.updateContestEventSettings(eventId, settings),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["contest", "settings", variables.eventId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["events"],
+      });
+      toast.success("Contest settings updated successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update contest settings");
+    },
+  });
+}
+

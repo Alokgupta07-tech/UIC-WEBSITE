@@ -14,6 +14,8 @@ import type {
   ContestModerationLog,
   VerificationStatus,
   SubmissionStatus,
+  ContestStatus,
+  ContestSettings,
 } from "@/types";
 
 // ============================================================================
@@ -434,6 +436,124 @@ export async function importUnstopParticipantsCSV(
     totalImported: data.length,
     records: data.map(mapParticipant),
   };
+}
+
+export async function addManualParticipant(params: {
+  eventId: string;
+  participantName: string;
+  participantEmail: string;
+  unstopRegistrationId?: string;
+  verificationStatus?: VerificationStatus;
+  adminId?: string;
+  note?: string;
+}) {
+  const isVerified = (params.verificationStatus || "verified") === "verified";
+  const { data, error } = await supabase
+    .from("contest_participants")
+    .insert({
+      event_id: params.eventId,
+      participant_name: params.participantName.trim(),
+      participant_email: params.participantEmail.trim().toLowerCase(),
+      unstop_registration_id: params.unstopRegistrationId?.trim() || null,
+      verification_status: params.verificationStatus || "verified",
+      verification_source: "admin_manual",
+      verified_by: isVerified ? (params.adminId || null) : null,
+      verified_at: isVerified ? new Date().toISOString() : null,
+      rejection_or_admin_note: params.note?.trim() || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  try {
+    await linkParticipantToUser(params.eventId, params.participantEmail);
+  } catch {
+    // Ignore linking errors
+  }
+
+  return mapParticipant(data);
+}
+
+export async function deleteContestParticipant(participantId: string) {
+  const { error } = await supabase
+    .from("contest_participants")
+    .delete()
+    .eq("id", participantId);
+
+  if (error) throw error;
+  return true;
+}
+
+export async function getAllContestRatings(eventId: string) {
+  const { data, error } = await supabase
+    .from("contest_ratings")
+    .select(`
+      *,
+      profiles:reviewer_id(full_name, avatar_url),
+      contest_submissions:submission_id(project_name, user_id, profiles:user_id(full_name))
+    `)
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    ...mapRating(row),
+    reviewerName: row.profiles?.full_name || "Anonymous Reviewer",
+    projectName: row.contest_submissions?.project_name || "Untitled Submission",
+    creatorName: row.contest_submissions?.profiles?.full_name || "Unknown Creator",
+  }));
+}
+
+export async function getContestEventSettings(eventId: string): Promise<ContestSettings & { id: string; title: string }> {
+  const { data, error } = await supabase
+    .from("events")
+    .select(`
+      id,
+      title,
+      contest_status,
+      is_submissions_open,
+      is_ratings_open,
+      is_gallery_published,
+      is_leaderboard_published,
+      submission_open_at,
+      submission_close_at,
+      rating_open_at,
+      rating_close_at,
+      min_ratings_for_ranking,
+      external_registration_url
+    `)
+    .eq("id", eventId)
+    .single();
+
+  if (error) throw error;
+  return {
+    id: data.id,
+    title: data.title,
+    contestStatus: (data.contest_status as ContestStatus) || "draft",
+    isSubmissionsOpen: data.is_submissions_open ?? false,
+    isRatingsOpen: data.is_ratings_open ?? false,
+    isGalleryPublished: data.is_gallery_published ?? true,
+    isLeaderboardPublished: data.is_leaderboard_published ?? false,
+    submissionOpenAt: data.submission_open_at,
+    submissionCloseAt: data.submission_close_at,
+    ratingOpenAt: data.rating_open_at,
+    ratingCloseAt: data.rating_close_at,
+    minRatingsForRanking: data.min_ratings_for_ranking ?? 1,
+    externalRegistrationUrl: data.external_registration_url,
+  };
+}
+
+export async function updateContestEventSettings(eventId: string, settings: Record<string, unknown>) {
+  const { data, error } = await supabase
+    .from("events")
+    .update(settings)
+    .eq("id", eventId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 // ============================================================================
