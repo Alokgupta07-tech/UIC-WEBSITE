@@ -13,6 +13,7 @@ import { Reveal } from "@/components/shared/Reveal";
 import { CertificateRecord } from "@/components/certificates/CertificateRecord";
 import { CertificateActions } from "@/components/certificates/CertificateActions";
 import { VerificationVerdict } from "@/components/certificates/VerificationVerdict";
+import { PrintableCertificate } from "@/components/certificates/PrintableCertificate";
 import { verdictHeading } from "@/components/certificates/verdictCopy";
 import { ErrorState } from "@/components/dashboard/SectionStates";
 import { verifyCertificate } from "@/services/certificates";
@@ -132,10 +133,14 @@ const VerifyCertificate = () => {
             {showRecord && (
               <>
                 <Reveal variant="fade-up" delay={0.06}>
-                  <CertificateRecord data={data} />
+                  <PrintableCertificate data={data} token={token} />
                 </Reveal>
 
                 <Reveal variant="fade-up" delay={0.12}>
+                  <CertificateRecord data={data} />
+                </Reveal>
+
+                <Reveal variant="fade-up" delay={0.16}>
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Share is omitted here: this page's own URL is the share link. */}
                     <CertificateActions data={data} token={token} showShare={false} />
