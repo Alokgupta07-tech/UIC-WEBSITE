@@ -163,7 +163,8 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
     isError,
   } = useQuery({
     queryKey: ["certificates-admin", eventId],
-    queryFn: () => getAllCertificatesAdmin(eventId || undefined),
+    queryFn: () =>
+      getAllCertificatesAdmin(eventId && eventId !== "all-events" ? eventId : undefined),
   });
 
   const { data: allAuditLogs } = useQuery({
@@ -500,7 +501,10 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
 
                 {/* Filter and Action Controls */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <Select value={eventId} onValueChange={setEventId}>
+                  <Select
+                    value={eventId || "all-events"}
+                    onValueChange={(val) => setEventId(val === "all-events" ? "" : val)}
+                  >
                     <SelectTrigger className="w-[200px] h-9 text-xs">
                       <SelectValue placeholder="All Events" />
                     </SelectTrigger>

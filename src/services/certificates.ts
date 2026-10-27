@@ -353,10 +353,14 @@ export type CertificateInput = {
   revision_of?: string | null;
 };
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function getAllCertificatesAdmin(eventId?: string): Promise<Certificate[]> {
   try {
     let query = supabase.from("certificates").select(SELECT_WITH_EVENT);
-    if (eventId) query = query.eq("event_id", eventId);
+    if (eventId && UUID_PATTERN.test(eventId.trim())) {
+      query = query.eq("event_id", eventId.trim());
+    }
 
     const { data, error } = await query.order("created_at", { ascending: false });
 
