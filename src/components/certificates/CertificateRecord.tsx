@@ -94,8 +94,14 @@ export function CertificateRecord({
       </div>
 
       <div className="space-y-6 p-4 sm:p-6">
-        <Group title="Recipient">
-          <Field label="Participant name" value={data.recipientName} className="sm:col-span-2" />
+        <Group title="Recipient & Recognition">
+          <Field label="Recipient name" value={data.recipientName} className="sm:col-span-2" />
+          {data.role && <Field label="Role / Capacity" value={data.role} />}
+          {data.team && <Field label="Team / Department" value={data.team} />}
+          {data.customTitle && <Field label="Official Title" value={data.customTitle} className="sm:col-span-2" />}
+          {data.contributionSummary && (
+            <Field label="Contribution / Citation" value={data.contributionSummary} className="sm:col-span-2" />
+          )}
         </Group>
 
         <Separator />

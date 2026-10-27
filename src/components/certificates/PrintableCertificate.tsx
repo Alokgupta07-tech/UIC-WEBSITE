@@ -28,12 +28,14 @@ import {
   Palette, 
   ShieldCheck, 
   Award,
-  Sparkles
+  Sparkles,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatEventDate } from "@/lib/dates";
 import { buildVerificationUrl } from "@/services/certificates";
 import { createQrSvg } from "@/lib/qr";
+import { downloadCertificatePdf } from "@/lib/certificatePdf";
 import type { CertificateVerification } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -295,10 +297,41 @@ function getCitationText(
   org: string,
   eventDate: string,
   venue: string,
-  highlightColor: string
+  highlightColor: string,
+  customTitle?: string | null,
+  customSubtitle?: string | null,
+  customSummary?: string | null,
+  role?: string | null
 ) {
-  const lower = certType.toLowerCase();
   const venueClause = venue ? ` at ${venue}` : "";
+
+  // If custom title or contribution summary was provided by admin, prioritize it
+  if (customTitle || customSummary) {
+    const fallbackTitle = role
+      ? "CERTIFICATE OF APPRECIATION"
+      : certType
+      ? `CERTIFICATE OF ${certType.toUpperCase()}`
+      : "CERTIFICATE OF APPRECIATION";
+
+    return {
+      title: (customTitle || fallbackTitle).toUpperCase(),
+      subtitle:
+        customSubtitle ||
+        (role
+          ? `Presented in Recognition of Distinguished Service as ${role}`
+          : "In Recognition of Invaluable Contribution"),
+      body: customSummary || (
+        <>
+          In grateful recognition of stellar leadership, relentless dedication, and outstanding contribution
+          towards the successful organization and execution of{" "}
+          <strong style={{ color: highlightColor }}>{eventTitle}</strong> for{" "}
+          <strong>{org}</strong> on <strong>{eventDate}</strong>{venueClause}.
+        </>
+      ),
+    };
+  }
+
+  const lower = certType.toLowerCase();
 
   if (lower.includes("winner") || lower.includes("first") || lower.includes("1st")) {
     return {
@@ -425,17 +458,17 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
   }, [data.eventTitle, data.certificateType]);
 
   const [selectedThemeKey, setSelectedThemeKey] = useState<CertificateThemeKey>(
-    initialTheme || detectedThemeKey
+    initialTheme || (data.templateKey as CertificateThemeKey) || detectedThemeKey
   );
 
   // Update theme if event changes and user hasn't explicitly overridden
   useEffect(() => {
-    if (!initialTheme) {
+    if (!initialTheme && !data.templateKey) {
       setSelectedThemeKey(detectedThemeKey);
     }
-  }, [detectedThemeKey, initialTheme]);
+  }, [detectedThemeKey, initialTheme, data.templateKey]);
 
-  const theme = CERTIFICATE_THEMES[selectedThemeKey];
+  const theme = CERTIFICATE_THEMES[selectedThemeKey] || CERTIFICATE_THEMES["royal-sapphire"];
 
   const recipientName = toTitleCase(data.recipientName);
   const eventTitle = data.eventTitle || "Unstop Igniters Club Event";
@@ -447,20 +480,27 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
   const certType = data.certificateType || "Participation";
   const signerName = data.signerName || "Faculty Coordinator";
   const signerDesig = data.signerDesignation || "Unstop Igniters Club, SRM AP";
+  const signer2Name = data.signer2Name || null;
+  const signer2Desig = data.signer2Designation || null;
   const verifyUrl = token ? buildVerificationUrl(token) : "";
 
-  // Dynamic citation text
+  // Dynamic citation text with custom title and contribution summary support
   const citation = getCitationText(
     certType,
     eventTitle,
     org,
     eventDate,
     venue,
-    theme.citationHighlightColor
+    theme.citationHighlightColor,
+    data.customTitle,
+    data.specialRecognition,
+    data.contributionSummary,
+    data.role
   );
 
   // Scannable QR code state
   const [qrSvg, setQrSvg] = useState<string>(() => (verifyUrl ? generateQRCodeSVG(verifyUrl, 84) : ""));
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   useEffect(() => {
     if (!verifyUrl) return;
@@ -480,6 +520,39 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
   const handlePrint = useCallback(() => {
     window.print();
   }, []);
+
+  const handleDownloadPdf = async () => {
+    setIsDownloadingPdf(true);
+    try {
+      await downloadCertificatePdf({
+        certificateNumber: certId,
+        verificationToken: token || "",
+        recipientName,
+        eventTitle,
+        eventDate,
+        eventVenue: venue,
+        eventIsOnline: data.eventIsOnline,
+        certificateType: certType,
+        customTitle: data.customTitle,
+        role: data.role,
+        team: data.team,
+        contributionSummary: data.contributionSummary,
+        specialRecognition: data.specialRecognition,
+        organizerOrganization: org,
+        signerName,
+        signerDesignation: signerDesig,
+        signer2Name: signer2Name || "President / Lead",
+        signer2Designation: signer2Desig || "Student Body, SRM University–AP",
+        issueDate,
+        themeKey: selectedThemeKey,
+      });
+      toast.success("Certificate PDF generated & downloaded!");
+    } catch {
+      toast.error("Failed to generate PDF. You can also use 'Print / Save as PDF'.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   const handleCopyId = async () => {
     try {
@@ -504,6 +577,16 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
             >
               <Printer className="h-4 w-4" />
               Print / Save as PDF
+            </Button>
+
+            <Button
+              onClick={handleDownloadPdf}
+              disabled={isDownloadingPdf}
+              variant="outline"
+              className="gap-2 border-emerald-600/50 hover:bg-emerald-50 text-emerald-700 dark:text-emerald-300 font-medium"
+            >
+              <Download className="h-4 w-4" />
+              {isDownloadingPdf ? "Creating PDF..." : "Download Official PDF"}
             </Button>
 
             {verifyUrl && (
@@ -790,6 +873,21 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
               className="mx-auto w-3/4 h-[2px] rounded-full"
               style={{ background: theme.underlineGradient }}
             />
+            {/* Role & Team Recognition Pill */}
+            {(data.role || data.team) && (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span
+                  className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shadow-2xs"
+                  style={{
+                    backgroundColor: theme.headerPillBg,
+                    color: theme.headerPillText,
+                    borderColor: theme.headerPillBorder,
+                  }}
+                >
+                  {[data.role, data.team].filter(Boolean).join(" • ")}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Section 4: Detailed Citation Copy */}
@@ -802,10 +900,10 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
             </p>
           </div>
 
-          {/* Section 5: Triple Authentication Footer */}
-          <div className="w-full grid grid-cols-3 items-end gap-3 pt-2">
+          {/* Section 5: Authentication Footer (Single or Dual Signatories) */}
+          <div className={`w-full grid ${signer2Name ? "grid-cols-4" : "grid-cols-3"} items-end gap-2 pt-2`}>
             
-            {/* 1. Left: Official Signatory */}
+            {/* 1. Left: Official Signatory 1 */}
             <div className="text-center space-y-1">
               {data.signerSignatureUrl ? (
                 <img
@@ -828,7 +926,7 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
                 </div>
               )}
               <div
-                className="mx-auto w-36 h-[1.5px]"
+                className="mx-auto w-28 sm:w-36 h-[1.5px]"
                 style={{ background: theme.signatureLineColor }}
               />
               <p
@@ -837,12 +935,51 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
               >
                 {signerName}
               </p>
-              <p className="text-[10px] text-gray-600 leading-tight">
+              <p className="text-[9px] sm:text-[10px] text-gray-600 leading-tight">
                 {signerDesig}
               </p>
             </div>
 
-            {/* 2. Center: 3D Metallic Embossed Seal with Silk Ribbons */}
+            {/* 2. Optional Second Signatory */}
+            {signer2Name && (
+              <div className="text-center space-y-1">
+                {data.signer2SignatureUrl ? (
+                  <img
+                    src={data.signer2SignatureUrl}
+                    alt={`Signature of ${signer2Name}`}
+                    className="h-10 mx-auto object-contain"
+                    style={{ printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
+                  />
+                ) : (
+                  <div className="h-10 flex items-end justify-center">
+                    <span
+                      className="italic text-base sm:text-lg font-semibold tracking-wide"
+                      style={{
+                        color: theme.outerBorderColor,
+                        fontFamily: "'Brush Script MT', 'Segoe Script', cursive, serif",
+                      }}
+                    >
+                      {signer2Name}
+                    </span>
+                  </div>
+                )}
+                <div
+                  className="mx-auto w-28 sm:w-36 h-[1.5px]"
+                  style={{ background: theme.signatureLineColor }}
+                />
+                <p
+                  className="text-xs font-bold leading-tight"
+                  style={{ color: theme.outerBorderColor }}
+                >
+                  {signer2Name}
+                </p>
+                <p className="text-[9px] sm:text-[10px] text-gray-600 leading-tight">
+                  {signer2Desig || "Unstop Igniters Club, SRM AP"}
+                </p>
+              </div>
+            )}
+
+            {/* 3. Center: 3D Metallic Embossed Seal with Silk Ribbons */}
             <div className="flex flex-col items-center justify-center relative">
               {/* Dangling Silk Ribbon Tails */}
               <div className="absolute top-[42px] flex items-center justify-center pointer-events-none z-0">
@@ -899,7 +1036,7 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
               </div>
             </div>
 
-            {/* 3. Right: Verification QR & Monospace ID */}
+            {/* 4. Right: Verification QR & Monospace ID */}
             <div className="text-center space-y-1">
               <div className="flex justify-center">
                 <div className="p-1 rounded-sm bg-white border shadow-2xs">

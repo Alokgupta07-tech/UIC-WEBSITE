@@ -283,6 +283,9 @@ export interface ContestSettings {
 /** Lifecycle of an issued certificate, as stored in `certificates.status`. */
 export type CertificateStatus = "issued" | "revoked" | "expired";
 
+/** Email delivery status for a certificate. */
+export type CertificateEmailStatus = "pending" | "sending" | "sent" | "failed" | "skipped";
+
 /**
  * A certificate owned by the signed-in member. Read through RLS, so the
  * client can only ever hold rows that belong to the current user (or every
@@ -312,7 +315,41 @@ export interface Certificate {
   signerDesignation: string | null;
   signerSignatureUrl: string | null;
 
+  /** Second signatory */
+  signer2Name: string | null;
+  signer2Designation: string | null;
+  signer2SignatureUrl: string | null;
+
   certificateFileUrl: string | null;
+
+  /** Role-based content fields */
+  role: string | null;
+  team: string | null;
+  contributionSummary: string | null;
+  skills: string[] | null;
+  customTitle: string | null;
+  specialRecognition: string | null;
+
+  /** Template selection */
+  templateKey: string | null;
+
+  /** Email delivery status */
+  emailStatus: CertificateEmailStatus;
+  emailSentAt: string | null;
+  emailError: string | null;
+
+  /** PDF reference */
+  pdfUrl: string | null;
+
+  /** Download count */
+  downloadCount: number;
+
+  /** Revision chain */
+  revisionOf: string | null;
+
+  /** Participation period */
+  participationStart: string | null;
+  participationEnd: string | null;
 
   eventId: string;
   eventTitle: string | null;
@@ -357,9 +394,65 @@ export interface CertificateVerification {
   signerDesignation: string | null;
   signerSignatureUrl: string | null;
 
+  /** Second signatory */
+  signer2Name?: string | null;
+  signer2Designation?: string | null;
+  signer2SignatureUrl?: string | null;
+
   certificateFileUrl: string | null;
   issueDate: string | null;
   verifiedAt: string;
+
+  /** Extended fields from the updated RPC */
+  role: string | null;
+  team: string | null;
+  contributionSummary: string | null;
+  customTitle: string | null;
+  specialRecognition: string | null;
+  templateKey: string | null;
+}
+
+/** Certificate template configuration. */
+export interface CertificateTemplate {
+  id: string;
+  name: string;
+  category: string;
+  themeKey: string;
+  description: string | null;
+  defaultContributionSummary: string | null;
+  defaultCertificateType: string;
+  logoUrl: string | null;
+  accentColor: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Certificate email delivery log entry. */
+export interface CertificateEmailLog {
+  id: string;
+  certificateId: string;
+  recipientEmail: string;
+  subject: string | null;
+  providerMessageId: string | null;
+  status: "pending" | "sent" | "delivered" | "failed" | "bounced";
+  attemptCount: number;
+  lastAttemptAt: string;
+  errorDetails: string | null;
+  createdAt: string;
+}
+
+/** Certificate audit log entry. */
+export interface CertificateAuditLog {
+  id: string;
+  certificateId: string | null;
+  adminId: string;
+  action: string;
+  oldStatus: string | null;
+  newStatus: string | null;
+  reason: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
 }
 
 // ---------------------------------------------------------------------------
