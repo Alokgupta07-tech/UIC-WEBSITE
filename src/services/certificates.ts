@@ -87,7 +87,7 @@ type CertificateRow = {
 };
 
 const SELECT_WITH_EVENT =
-  "*, events:event_id(title, event_date, venue, is_online, event_categories:category_id(name))";
+  "*, events!certificates_event_id_fkey(title, event_date, venue, is_online, event_categories!events_category_id_fkey(name))";
 
 function mapCertificate(row: CertificateRow): Certificate {
   return {
