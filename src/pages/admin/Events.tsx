@@ -55,6 +55,10 @@ const EMPTY_FORM: EventInput = {
   location: "",
   is_online: false,
   event_type: "",
+  contest_status: "draft",
+  is_submissions_open: false,
+  is_ratings_open: false,
+  is_leaderboard_published: false,
   unstop_registration_link: "",
   category_id: "",
   status: "draft",
@@ -128,6 +132,10 @@ export default function AdminEvents() {
       location: event.location || "",
       is_online: event.isOnline || false,
       event_type: event.eventType || "",
+      contest_status: event.contestStatus || "draft",
+      is_submissions_open: event.isSubmissionsOpen || false,
+      is_ratings_open: event.isRatingsOpen || false,
+      is_leaderboard_published: event.isLeaderboardPublished || false,
       unstop_registration_link: event.unstopRegistrationLink || "",
       category_id: event.category?.id || "",
       status: event.status,
@@ -497,6 +505,26 @@ export default function AdminEvents() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-4 rounded-lg border p-4">
+              <div>
+                <Label>Event type</Label>
+                <Select value={form.event_type || "standard"} onValueChange={(value) => setForm((f) => ({ ...f, event_type: value === "standard" ? "" : value, contest_status: value === "contest" ? (f.contest_status || "draft") : null }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="standard">Standard event</SelectItem><SelectItem value="contest">Contest</SelectItem></SelectContent>
+                </Select>
+              </div>
+              {form.event_type === "contest" && <>
+                <div>
+                  <Label>Contest status</Label>
+                  <Select value={form.contest_status || "draft"} onValueChange={(value) => setForm((f) => ({ ...f, contest_status: value }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>{["draft", "published", "verification_open", "submissions_open", "submissions_closed", "ratings_open", "ratings_closed", "results_published", "completed"].map((value) => <SelectItem key={value} value={value}>{value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                {(["is_submissions_open", "is_ratings_open", "is_leaderboard_published"] as const).map((key) => <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.checked }))} />{key === "is_submissions_open" ? "Open submissions" : key === "is_ratings_open" ? "Open ratings" : "Publish leaderboard"}</label>)}
+              </>}
             </div>
 
             {/* Unstop Link */}

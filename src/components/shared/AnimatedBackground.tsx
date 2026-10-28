@@ -9,8 +9,7 @@ interface AnimatedBackgroundProps {
 }
 
 /**
- * Decorative background: three slow-drifting blurred blobs over the existing
- * hero pattern, plus an optional pointer-following glow.
+ * Decorative background: static gradients with an optional pointer-following glow.
  *
  * Everything is CSS transform/opacity only — no canvas, no per-frame React
  * state — so it stays off the main thread. The pointer glow writes CSS custom
@@ -89,9 +88,9 @@ export function AnimatedBackground({ interactive = false, className }: AnimatedB
     >
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5" />
 
-      <div className="absolute -left-32 -top-40 h-[26rem] w-[26rem] animate-blob-slow rounded-full bg-primary/20 blur-3xl dark:bg-primary/15" />
-      <div className="absolute -bottom-40 -right-32 h-[26rem] w-[26rem] animate-blob-slower rounded-full bg-secondary/20 blur-3xl dark:bg-secondary/15" />
-      <div className="absolute left-1/3 top-1/4 h-72 w-72 animate-blob-slowest rounded-full bg-accent/40 blur-3xl dark:bg-accent/25" />
+      <div className="absolute -left-32 -top-40 h-[26rem] w-[26rem] rounded-full bg-primary/20 blur-3xl dark:bg-primary/15" />
+      <div className="absolute -bottom-40 -right-32 h-[26rem] w-[26rem] rounded-full bg-secondary/20 blur-3xl dark:bg-secondary/15" />
+      <div className="absolute left-1/3 top-1/4 h-72 w-72 rounded-full bg-accent/40 blur-3xl dark:bg-accent/25" />
 
       {interactive && (
         <div

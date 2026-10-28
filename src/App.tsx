@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedAdminRoute } from "@/features/auth";
@@ -12,16 +13,16 @@ import Index from "./pages/Index";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import Team from "./pages/Team";
-import Gallery from "./pages/Gallery";
 import CertifiedStudents from "./pages/CertifiedStudents";
 import Resources from "./pages/Resources";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import Admin from "./pages/Admin";               // NEW
-import Attendance from "./pages/Attendance";
-import VerifyCertificate from "./pages/VerifyCertificate";
+const Gallery = lazy(() => import("./pages/Gallery"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Attendance = lazy(() => import("./pages/Attendance"));
+const VerifyCertificate = lazy(() => import("./pages/VerifyCertificate"));
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -31,8 +32,8 @@ const queryClient = new QueryClient({
       refetchOnMount: false,
       refetchOnReconnect: false,
       retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000,   // 10 minutes — keep cached data before garbage collection
+      staleTime: 30_000,
+      gcTime: 300_000,
     },
     mutations: {
       retry: 0,
@@ -49,6 +50,7 @@ const App = () => (
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <SettingsProvider>
             <AuthProvider>
+              <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-muted-foreground" role="status">Loading page…</div>}>
               <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/events" element={<Events />} />
@@ -76,6 +78,7 @@ const App = () => (
               />
               <Route path="*" element={<NotFound />} />
             </Routes>
+              </Suspense>
             </AuthProvider>
           </SettingsProvider>
         </BrowserRouter>

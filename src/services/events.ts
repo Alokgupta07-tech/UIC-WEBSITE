@@ -26,6 +26,7 @@ type EventRow = {
   updated_at: string | null;
   event_categories: { id: string; name: string; color: string | null } | null;
   // Contest fields
+  event_type: string | null;
   contest_status: string | null;
   is_submissions_open: boolean | null;
   is_ratings_open: boolean | null;
@@ -70,6 +71,7 @@ function mapEvent(row: EventRow): ClubEvent {
       : null,
     createdAt: row.created_at,
     // Contest fields
+    eventType: row.event_type,
     contestStatus: row.contest_status as any,
     isSubmissionsOpen: row.is_submissions_open,
     isRatingsOpen: row.is_ratings_open,
@@ -164,6 +166,12 @@ export type EventInput = {
   image_url?: string | null;
   max_participants?: number | null;
   registration_deadline?: string | null;
+  event_type?: string | null;
+  contest_status?: string | null;
+  is_submissions_open?: boolean | null;
+  is_ratings_open?: boolean | null;
+  is_leaderboard_published?: boolean | null;
+  unstop_registration_link?: string | null;
 };
 
 export async function createEvent(input: EventInput, createdBy: string) {
@@ -182,6 +190,12 @@ export async function createEvent(input: EventInput, createdBy: string) {
       image_url: input.image_url ?? null,
       max_participants: input.max_participants ?? null,
       registration_deadline: input.registration_deadline ?? null,
+      event_type: input.event_type ?? null,
+      contest_status: input.contest_status ?? null,
+      is_submissions_open: input.is_submissions_open ?? false,
+      is_ratings_open: input.is_ratings_open ?? false,
+      is_leaderboard_published: input.is_leaderboard_published ?? false,
+      unstop_registration_link: input.unstop_registration_link ?? null,
       is_published: true,
       created_by: createdBy,
     };
@@ -218,6 +232,12 @@ export async function updateEvent(id: string, input: Partial<EventInput>) {
     if (input.image_url !== undefined) safeInput.image_url = input.image_url;
     if (input.max_participants !== undefined) safeInput.max_participants = input.max_participants;
     if (input.registration_deadline !== undefined) safeInput.registration_deadline = input.registration_deadline;
+    if (input.event_type !== undefined) safeInput.event_type = input.event_type;
+    if (input.contest_status !== undefined) safeInput.contest_status = input.contest_status;
+    if (input.is_submissions_open !== undefined) safeInput.is_submissions_open = input.is_submissions_open;
+    if (input.is_ratings_open !== undefined) safeInput.is_ratings_open = input.is_ratings_open;
+    if (input.is_leaderboard_published !== undefined) safeInput.is_leaderboard_published = input.is_leaderboard_published;
+    if (input.unstop_registration_link !== undefined) safeInput.unstop_registration_link = input.unstop_registration_link;
 
     const { data, error } = await supabase
       .from("events")

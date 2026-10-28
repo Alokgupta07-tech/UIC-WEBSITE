@@ -59,6 +59,29 @@ interface ContestParticipantsProps {
   eventId: string;
 }
 
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let quoted = false;
+  const source = text.replace(/^\uFEFF/, "");
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+    if (char === '"' && quoted && source[i + 1] === '"') { field += '"'; i++; }
+    else if (char === '"') quoted = !quoted;
+    else if (char === "," && !quoted) { row.push(field.trim()); field = ""; }
+    else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && source[i + 1] === "\n") i++;
+      row.push(field.trim());
+      if (row.some((cell) => cell)) rows.push(row);
+      row = []; field = "";
+    } else field += char;
+  }
+  row.push(field.trim());
+  if (row.some((cell) => cell)) rows.push(row);
+  return rows;
+}
+
 export function ContestParticipants({ eventId }: ContestParticipantsProps) {
   const { data: participants, isLoading } = useAllContestParticipants(eventId);
   const updateVerification = useUpdateParticipantVerification();
@@ -172,8 +195,9 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
     if (!csvFile) return;
 
     const text = await csvFile.text();
-    const lines = text.split("\n").filter(line => line.trim());
-    const headers = lines[0].toLowerCase().split(",").map(h => h.trim());
+    const rows = parseCsv(text);
+    if (!rows.length) { alert("The CSV file is empty."); return; }
+    const headers = rows[0].map((h) => h.toLowerCase());
 
     // Detect columns
     const emailCol = headers.findIndex(h => 
@@ -191,14 +215,16 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
       return;
     }
 
-    const csvData = lines.slice(1).map(line => {
-      const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
-      return {
-        email: cols[emailCol] || "",
-        name: cols[nameCol] || "",
-        unstopId: idCol !== -1 ? cols[idCol] : undefined,
-      };
-    }).filter(row => row.email && row.name);
+    const seen = new Set<string>();
+    const csvData = rows.slice(1).map((cols) => ({
+      email: (cols[emailCol] || "").trim().toLowerCase(),
+      name: (cols[nameCol] || "").trim(),
+      unstopId: idCol !== -1 ? (cols[idCol] || "").trim() : undefined,
+    })).filter((row) => {
+      if (!row.email || !row.name || seen.has(row.email)) return false;
+      seen.add(row.email);
+      return true;
+    });
 
     await importCSV.mutateAsync({ eventId, csvData });
     setShowCSVUpload(false);

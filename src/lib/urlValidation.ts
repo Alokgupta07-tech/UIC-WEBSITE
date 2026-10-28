@@ -54,9 +54,10 @@ export function validateContestUrl(
   }
 
   // Try to parse the URL
+  const candidate = /^[a-z][a-z\d+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
   let parsedUrl: URL;
   try {
-    parsedUrl = new URL(trimmed);
+    parsedUrl = new URL(candidate);
   } catch {
     return {
       isValid: false,

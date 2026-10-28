@@ -62,6 +62,10 @@ export interface ClubEvent {
   category: { id: string; name: string; color: string | null } | null;
   createdAt: string | null;
   // Contest-specific fields
+  eventType?: string | null;
+  isSubmissionsOpen?: boolean | null;
+  isRatingsOpen?: boolean | null;
+  isLeaderboardPublished?: boolean | null;
   contestStatus?: ContestStatus | null;
   isSubmissionsOpen?: boolean | null;
   isRatingsOpen?: boolean | null;

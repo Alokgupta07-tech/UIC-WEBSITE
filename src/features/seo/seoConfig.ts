@@ -4,9 +4,8 @@
 export const SITE_NAME = "Unstop Igniters Club";
 
 /** Base site URL — from VITE_SITE_URL env, falls back to current origin. */
-export const SITE_URL: string =
-  (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/$/, "") ||
-  (typeof window !== "undefined" ? window.location.origin : "https://uic.example.com");
+import { getSiteUrl } from "@/lib/utils";
+export const SITE_URL: string = getSiteUrl() || "https://uic.example.com";
 
 export const DEFAULT_TITLE = "Unstop Igniters Club | SRM University AP";
 

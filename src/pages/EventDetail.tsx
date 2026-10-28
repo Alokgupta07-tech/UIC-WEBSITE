@@ -31,9 +31,9 @@ const EventDetail = () => {
   const orgJsonLd = useOrganizationJsonLd();
 
   // Check if this is a contest event (Vibe Coding Contest)
-  const isContestEvent = event?.title?.toLowerCase().includes("vibe coding contest") ||
-                         event?.title?.toLowerCase().includes("coding contest") ||
-                         event?.contestStatus !== null;
+  const isContestEvent = event?.eventType === "contest" ||
+                         Boolean(event?.contestStatus) ||
+                         Boolean(event?.title?.toLowerCase().includes("coding contest"));
 
   // If it's a contest event, render the contest page without layout
   if (!isLoading && event && isContestEvent) {

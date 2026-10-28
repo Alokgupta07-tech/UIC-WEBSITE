@@ -177,6 +177,7 @@ export function QrScannerDialog({ open, onOpenChange, onVerified }: QrScannerDia
                     className="h-full w-full object-cover"
                     playsInline
                     muted
+                    autoPlay
                     aria-label="Certificate QR code camera preview"
                   />
 
