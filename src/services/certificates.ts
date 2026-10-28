@@ -77,7 +77,7 @@ type CertificateRow = {
   participation_start?: string | null;
   participation_end?: string | null;
   created_at: string;
-  events: {
+  events?: {
     title: string;
     event_date: string;
     venue: string | null;
@@ -86,8 +86,74 @@ type CertificateRow = {
   } | null;
 };
 
-const SELECT_WITH_EVENT =
-  "*, events!certificates_event_id_fkey(title, event_date, venue, is_online, event_categories!events_category_id_fkey(name))";
+type CertificateEvent = {
+  id: string;
+  title: string;
+  event_date: string;
+  venue: string | null;
+  is_online: boolean | null;
+  category_id: string | null;
+};
+
+/**
+ * Keep certificate reads independent of PostgREST relationship embedding.
+ * Some deployed schemas/cache states reject nested embeds even though the FK
+ * exists. Fetch events/categories separately so certificate operations still
+ * work and the certificate itself remains usable if optional event metadata is
+ * unavailable under RLS.
+ */
+async function mapCertificates(rows: CertificateRow[]): Promise<Certificate[]> {
+  const eventIds = [...new Set(rows.map((row) => row.event_id).filter(Boolean))];
+  if (eventIds.length === 0) return rows.map(mapCertificate);
+
+  const { data: events, error: eventsError } = await supabase
+    .from("events")
+    .select("id, title, event_date, venue, is_online, category_id")
+    .in("id", eventIds);
+
+  const eventsById = new Map<string, CertificateEvent>();
+  if (!eventsError && events) {
+    for (const event of events) eventsById.set(event.id, event);
+  }
+
+  const categoryIds = [...new Set([...eventsById.values()]
+    .map((event) => event.category_id)
+    .filter((id): id is string => Boolean(id)))];
+  const categoriesById = new Map<string, string>();
+
+  if (categoryIds.length > 0) {
+    const { data: categories, error: categoriesError } = await supabase
+      .from("event_categories")
+      .select("id, name")
+      .in("id", categoryIds);
+    if (!categoriesError && categories) {
+      for (const category of categories) categoriesById.set(category.id, category.name);
+    }
+  }
+
+  return rows.map((row) => {
+    const event = eventsById.get(row.event_id);
+    return mapCertificate({
+      ...row,
+      events: event
+        ? {
+            title: event.title,
+            event_date: event.event_date,
+            venue: event.venue,
+            is_online: event.is_online,
+            event_categories: event.category_id && categoriesById.has(event.category_id)
+              ? { name: categoriesById.get(event.category_id)! }
+              : null,
+          }
+        : null,
+    });
+  });
+}
+
+async function mapSingleCertificate(row: CertificateRow): Promise<Certificate> {
+  const [certificate] = await mapCertificates([row]);
+  return certificate;
+}
 
 function mapCertificate(row: CertificateRow): Certificate {
   return {
@@ -306,14 +372,14 @@ export async function getMyCertificates(): Promise<Certificate[]> {
   try {
     const { data, error } = await supabase
       .from("certificates")
-      .select(SELECT_WITH_EVENT)
+      .select("*")
       .order("issue_date", { ascending: false });
 
     if (error) {
       if (isCertificateSystemMissing(error)) return [];
       throw error;
     }
-    return (data as unknown as CertificateRow[]).map(mapCertificate);
+    return mapCertificates(data as unknown as CertificateRow[]);
   } catch (error) {
     if (isCertificateSystemMissing(error)) return [];
     throw error;
@@ -357,7 +423,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 export async function getAllCertificatesAdmin(eventId?: string): Promise<Certificate[]> {
   try {
-    let query = supabase.from("certificates").select(SELECT_WITH_EVENT);
+    let query = supabase.from("certificates").select("*");
     if (eventId && UUID_PATTERN.test(eventId.trim())) {
       query = query.eq("event_id", eventId.trim());
     }
@@ -368,7 +434,7 @@ export async function getAllCertificatesAdmin(eventId?: string): Promise<Certifi
       if (isCertificateSystemMissing(error)) return [];
       throw error;
     }
-    return (data as unknown as CertificateRow[]).map(mapCertificate);
+    return mapCertificates(data as unknown as CertificateRow[]);
   } catch (error) {
     if (isCertificateSystemMissing(error)) return [];
     throw error;
@@ -411,11 +477,11 @@ export async function issueCertificate(
   const { data, error } = await supabase
     .from("certificates")
     .insert(insertPayload)
-    .select(SELECT_WITH_EVENT)
+    .select("*")
     .single();
 
   if (error) throw error;
-  const created = mapCertificate(data as unknown as CertificateRow);
+  const created = await mapSingleCertificate(data as unknown as CertificateRow);
 
   // Log to audit log if available
   if (createdBy) {
@@ -536,11 +602,11 @@ export async function updateCertificate(
     .from("certificates")
     .update(payload)
     .eq("id", id)
-    .select(SELECT_WITH_EVENT)
+    .select("*")
     .single();
 
   if (error) throw error;
-  return mapCertificate(data as unknown as CertificateRow);
+  return mapSingleCertificate(data as unknown as CertificateRow);
 }
 
 /** Set status (issued, revoked, expired) with audit log */
