@@ -1,4 +1,3 @@
-# Replace uic.example.com with your production domain.
 User-agent: Googlebot
 Allow: /
 
@@ -19,4 +18,4 @@ Disallow: /admin
 Disallow: /profile
 Disallow: /auth
 
-Sitemap: https://uic.example.com/sitemap.xml
+Sitemap: https://uic-website-seven.vercel.app/sitemap.xml

@@ -5,7 +5,7 @@ export const SITE_NAME = "Unstop Igniters Club";
 
 /** Base site URL — from VITE_SITE_URL env, falls back to current origin. */
 import { getSiteUrl } from "@/lib/utils";
-export const SITE_URL: string = getSiteUrl() || "https://uic.example.com";
+export const SITE_URL: string = getSiteUrl() || "https://uic-website-seven.vercel.app";
 
 export const DEFAULT_TITLE = "Unstop Igniters Club | SRM University AP";
 
@@ -23,7 +23,7 @@ export const DEFAULT_KEYWORDS = [
   "Workshops",
 ].join(", ");
 
-export const DEFAULT_OG_IMAGE = "/og-image.jpg";
+export const DEFAULT_OG_IMAGE = "/favicon.jpg";
 
 export interface PageSeo {
   /** Full page title (already includes the suffix where appropriate). */

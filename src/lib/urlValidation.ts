@@ -25,6 +25,22 @@ const PRIVATE_IP_PATTERNS = [
   /^\[::\]$/,
 ];
 
+/** Normalize public links that may have been stored without a URL scheme. */
+export function normalizeHttpUrl(input: string | null | undefined): string | null {
+  const value = input?.trim();
+  if (!value) return null;
+  const candidate = /^[a-z][a-z\d+.-]*:/i.test(value) ? value : `https://${value}`;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    const hostname = url.hostname.toLowerCase();
+    if (PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(hostname))) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export interface UrlValidationResult {
   isValid: boolean;
   error?: string;

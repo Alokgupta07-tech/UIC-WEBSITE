@@ -5,6 +5,7 @@ import type { ClubEvent } from "@/types";
 import type { ContestStatus } from "@/types";
 import { isMissingTableError } from "@/services/supabaseErrors";
 import { isPast } from "date-fns";
+import { normalizeHttpUrl } from "@/lib/urlValidation";
 
 type EventRow = {
   id: string;
@@ -56,13 +57,13 @@ function mapEvent(row: EventRow): ClubEvent {
     venue: row.venue,
     location: row.location,
     isOnline: row.is_online,
-    meetingLink: row.meeting_link,
+    meetingLink: normalizeHttpUrl(row.meeting_link),
     maxParticipants: row.max_participants,
     registrationDeadline: row.registration_deadline,
     isPublished: row.is_published,
     isUpcoming: row.is_published ? !isPast(new Date(row.event_date)) : false,
     status: row.is_published ? "published" : "draft",
-    unstopRegistrationLink: row.unstop_registration_link ?? row.meeting_link,
+    unstopRegistrationLink: normalizeHttpUrl(row.unstop_registration_link) ?? normalizeHttpUrl(row.meeting_link),
     category: row.event_categories
       ? {
           id: row.event_categories.id,
@@ -83,7 +84,7 @@ function mapEvent(row: EventRow): ClubEvent {
     ratingOpenAt: row.rating_open_at,
     ratingCloseAt: row.rating_close_at,
     minRatingsForRanking: row.min_ratings_for_ranking,
-    externalRegistrationUrl: row.external_registration_url,
+    externalRegistrationUrl: normalizeHttpUrl(row.external_registration_url),
   };
 }
 
