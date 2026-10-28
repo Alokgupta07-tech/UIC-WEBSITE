@@ -46,7 +46,7 @@ import {
   Download
 } from "lucide-react";
 import { format } from "date-fns";
-import type { SubmissionStatus } from "@/types";
+import type { ContestSubmission, SubmissionStatus } from "@/types";
 import { getSafeExternalLinkProps } from "@/lib/urlValidation";
 
 interface ContestSubmissionsProps {
@@ -56,7 +56,7 @@ interface ContestSubmissionsProps {
 export function ContestSubmissions({ eventId }: ContestSubmissionsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<SubmissionStatus | "all">("all");
-  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<ContestSubmission | null>(null);
   const [showModerateDialog, setShowModerateDialog] = useState(false);
   const [moderationReason, setModerationReason] = useState("");
 
@@ -70,7 +70,7 @@ export function ContestSubmissions({ eventId }: ContestSubmissionsProps) {
     s.projectDescription.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleModerate = (submission: any) => {
+  const handleModerate = (submission: ContestSubmission) => {
     setSelectedSubmission(submission);
     setModerationReason(submission.moderationReason || "");
     setShowModerateDialog(true);
@@ -162,7 +162,7 @@ export function ContestSubmissions({ eventId }: ContestSubmissionsProps) {
                 className="pl-9"
               />
             </div>
-            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
+            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as SubmissionStatus | "all")}>
               <SelectTrigger className="w-48">
                 <SelectValue />
               </SelectTrigger>

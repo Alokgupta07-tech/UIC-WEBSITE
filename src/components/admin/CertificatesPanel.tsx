@@ -467,7 +467,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
       </div>
 
       {/* Main Tabs Navigation */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "directory" | "single" | "batch" | "logs")} className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-11">
           <TabsTrigger value="directory" className="gap-2 text-xs sm:text-sm font-semibold">
             <Award className="h-4 w-4" />
@@ -553,7 +553,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                   />
                 </div>
 
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "issued" | "revoked")}>
                   <SelectTrigger className="h-9 text-xs">
                     <SelectValue placeholder="Status Filter" />
                   </SelectTrigger>
@@ -564,7 +564,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                   </SelectContent>
                 </Select>
 
-                <Select value={emailStatusFilter} onValueChange={(v) => setEmailStatusFilter(v as any)}>
+                <Select value={emailStatusFilter} onValueChange={(v) => setEmailStatusFilter(v as "all" | CertificateEmailStatus)}>
                   <SelectTrigger className="h-9 text-xs">
                     <SelectValue placeholder="Email Status Filter" />
                   </SelectTrigger>

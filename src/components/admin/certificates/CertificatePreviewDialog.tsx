@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { PrintableCertificate } from "@/components/certificates/PrintableCertificate";
+import { PrintableCertificate, type CertificateThemeKey } from "@/components/certificates/PrintableCertificate";
 import type { Certificate } from "@/types";
 
 interface CertificatePreviewDialogProps {
@@ -42,6 +42,8 @@ export function CertificatePreviewDialog({
     specialRecognition: certificate.specialRecognition,
     templateKey: certificate.templateKey,
   };
+  const themeKeys: CertificateThemeKey[] = ["cyber-emerald", "royal-sapphire", "imperial-ruby", "amethyst-prestige", "grand-monarch"];
+  const initialTheme = themeKeys.find((key) => key === certificate.templateKey);
 
   return (
     <Dialog open={Boolean(certificate)} onOpenChange={(open) => !open && onClose()}>
@@ -59,7 +61,7 @@ export function CertificatePreviewDialog({
           <PrintableCertificate
             data={verificationData}
             token={certificate.verificationToken}
-            initialTheme={(certificate.templateKey as any) || undefined}
+            initialTheme={initialTheme}
           />
         </div>
       </DialogContent>

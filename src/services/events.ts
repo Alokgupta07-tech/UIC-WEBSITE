@@ -2,6 +2,7 @@
 // All reads here are subject to RLS (public sees only published).
 import { supabase } from "@/integrations/supabase/client";
 import type { ClubEvent } from "@/types";
+import type { ContestStatus } from "@/types";
 import { isMissingTableError } from "@/services/supabaseErrors";
 import { isPast } from "date-fns";
 
@@ -72,7 +73,7 @@ function mapEvent(row: EventRow): ClubEvent {
     createdAt: row.created_at,
     // Contest fields
     eventType: row.event_type,
-    contestStatus: row.contest_status as any,
+    contestStatus: row.contest_status as ContestStatus | null,
     isSubmissionsOpen: row.is_submissions_open,
     isRatingsOpen: row.is_ratings_open,
     isGalleryPublished: row.is_gallery_published,

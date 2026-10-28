@@ -497,7 +497,7 @@ export async function getAllContestRatings(eventId: string) {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data || []).map((row: any) => ({
+  return (data || []).map((row) => ({
     ...mapRating(row),
     reviewerName: row.profiles?.full_name || "Anonymous Reviewer",
     projectName: row.contest_submissions?.project_name || "Untitled Submission",

@@ -39,10 +39,9 @@ export function ReissueCertificateDialog({
   const [contributionSummary, setContributionSummary] = useState(certificate?.contributionSummary || "");
   const [reason, setReason] = useState("");
 
-  if (!certificate) return null;
-
   const reissueMutation = useMutation({
     mutationFn: async () => {
+      if (!certificate) throw new Error("Select a certificate first.");
       if (!reason.trim()) {
         throw new Error("Please specify the reason for reissuing this certificate.");
       }
@@ -70,6 +69,8 @@ export function ReissueCertificateDialog({
       toast.error(err instanceof Error ? err.message : "Failed to reissue certificate.");
     },
   });
+
+  if (!certificate) return null;
 
   return (
     <Dialog open={Boolean(certificate)} onOpenChange={(open) => !open && onClose()}>

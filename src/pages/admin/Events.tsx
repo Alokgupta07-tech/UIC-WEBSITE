@@ -154,8 +154,8 @@ export default function AdminEvents() {
       const url = await uploadEventBanner(file);
       setForm((f) => ({ ...f, banner_image: url }));
       toast.success("Banner uploaded");
-    } catch (e: any) {
-      toast.error(e.message || "Upload failed");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
     }

@@ -1,5 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { CertifiedStudent } from "@/types";
+import type { Database } from "@/integrations/supabase/types";
+
+type CertifiedStudentRow = Database["public"]["Tables"]["certified_students"]["Row"];
+type CertifiedStudentUpdate = Database["public"]["Tables"]["certified_students"]["Update"];
 
 export async function getCertifiedStudents(): Promise<CertifiedStudent[]> {
   const { data, error } = await supabase
@@ -45,7 +49,7 @@ export async function createCertifiedStudent(input: Omit<CertifiedStudent, "id">
 }
 
 export async function updateCertifiedStudent(id: string, input: Partial<CertifiedStudent>) {
-  const updateData: Record<string, any> = {};
+  const updateData: CertifiedStudentUpdate = {};
   
   if (input.name !== undefined) updateData.name = input.name;
   if (input.department !== undefined) updateData.department = input.department;
@@ -78,7 +82,7 @@ export async function deleteCertifiedStudent(id: string) {
 }
 
 // Helper to map DB row to frontend type
-function mapToCertifiedStudent(row: any): CertifiedStudent {
+function mapToCertifiedStudent(row: CertifiedStudentRow): CertifiedStudent {
   return {
     id: row.id,
     name: row.name,

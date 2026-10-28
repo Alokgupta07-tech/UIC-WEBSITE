@@ -22,7 +22,10 @@ export default defineConfig(() => ({
             if (id.includes("@supabase/supabase-js") || id.includes("@supabase/")) return "vendor-supabase";
             if (id.includes("framer-motion")) return "vendor-motion";
             if (id.includes("jspdf")) return "vendor-pdf";
-            if (id.includes("@radix-ui/")) return "vendor-radix";
+            // Keep Radix and React together. Splitting them creates a circular
+            // dependency between the vendor chunks and can leave React undefined
+            // while Radix modules evaluate in production.
+            if (id.includes("@radix-ui/")) return "vendor-react";
             if (id.includes("lucide-react")) return "vendor-icons";
             if (id.includes("@tanstack/")) return "vendor-query";
             if (id.includes("date-fns")) return "vendor-dates";

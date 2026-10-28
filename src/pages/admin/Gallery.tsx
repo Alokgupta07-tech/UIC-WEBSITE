@@ -93,8 +93,8 @@ export default function AdminGallery() {
       qc.invalidateQueries({ queryKey: ["admin-gallery"] });
       toast.success("Media uploaded successfully");
       setDialogOpen(false);
-    } catch (e: any) {
-      toast.error(e.message || "Upload failed");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
     }

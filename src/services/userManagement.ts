@@ -39,7 +39,7 @@ export async function getAdmins(): Promise<AdminUser[]> {
 
     if (rolesError) throw rolesError;
 
-    const userIds = (rolesData ?? []).map((row: any) => row.user_id);
+    const userIds = (rolesData ?? []).map((row) => row.user_id);
     if (userIds.length === 0) return [];
 
     // Step 2: Get profiles where user_id IN those ids
@@ -52,7 +52,7 @@ export async function getAdmins(): Promise<AdminUser[]> {
 
     // Merge results
     return userIds.map((userId: string) => {
-      const profile = (profilesData ?? []).find((p: any) => p.user_id === userId);
+      const profile = (profilesData ?? []).find((p) => p.user_id === userId);
       return {
         userId,
         fullName: profile?.full_name ?? null,
@@ -82,7 +82,7 @@ export async function getAllUsers(): Promise<RegisteredUser[]> {
     if (profiles.length === 0) return [];
 
     // Step 2: Get user_roles for those user_ids
-    const userIds = profiles.map((p: any) => p.user_id ?? p.id).filter(Boolean);
+    const userIds = profiles.map((p) => p.user_id ?? p.id).filter((id): id is string => Boolean(id));
     const { data: rolesData, error: rolesError } = await supabase
       .from("user_roles")
       .select("user_id, role")
@@ -91,11 +91,11 @@ export async function getAllUsers(): Promise<RegisteredUser[]> {
     if (rolesError) throw rolesError;
 
     const rolesMap = new Map<string, string>();
-    (rolesData ?? []).forEach((r: any) => {
+    (rolesData ?? []).forEach((r) => {
       if (r.role) rolesMap.set(r.user_id, r.role);
     });
 
-    return profiles.map((row: any) => {
+    return profiles.map((row) => {
       const uid = row.user_id ?? row.id;
       const dbRole = rolesMap.get(uid) ?? null;
       return {
@@ -132,7 +132,7 @@ export async function promoteToAdmin(email: string): Promise<void> {
       throw new Error("No user found with that email. They must sign in first.");
     }
 
-    const userId = (profile as any).user_id ?? (profile as any).id;
+    const userId = profile.user_id ?? profile.id;
 
     // Step 2: Insert admin role (on conflict do nothing)
     const { error: insertError } = await supabase

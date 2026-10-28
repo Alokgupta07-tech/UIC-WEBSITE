@@ -130,7 +130,7 @@ export function ContestSettingsAdmin({ eventId }: ContestSettingsAdminProps) {
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <Label>Active Contest Phase</Label>
-              <Select value={contestStatus} onValueChange={(val: any) => setContestStatus(val)}>
+              <Select value={contestStatus} onValueChange={(val) => setContestStatus(val as ContestStatus)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select phase" />
                 </SelectTrigger>

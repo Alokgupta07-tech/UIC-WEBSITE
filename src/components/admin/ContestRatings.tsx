@@ -45,6 +45,9 @@ import {
   Download
 } from "lucide-react";
 import { format } from "date-fns";
+import type { ContestRating } from "@/types";
+
+type ContestRatingWithDetails = ContestRating & { reviewerName?: string; projectName?: string; creatorName?: string };
 
 interface ContestRatingsProps {
   eventId: string;
@@ -57,7 +60,7 @@ export function ContestRatings({ eventId }: ContestRatingsProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterValidity, setFilterValidity] = useState<"all" | "valid" | "flagged">("all");
   const [filterScore, setFilterScore] = useState<string>("all");
-  const [selectedRating, setSelectedRating] = useState<any>(null);
+  const [selectedRating, setSelectedRating] = useState<ContestRatingWithDetails | null>(null);
   const [showFlagDialog, setShowFlagDialog] = useState(false);
   const [flagReason, setFlagReason] = useState("");
   const [flagTargetState, setFlagTargetState] = useState<boolean>(false);
@@ -91,7 +94,7 @@ export function ContestRatings({ eventId }: ContestRatingsProps) {
     count: ratings?.filter((r) => r.isValid && r.score === s).length || 0,
   }));
 
-  const handleOpenFlagDialog = (rating: any, makeValid: boolean) => {
+  const handleOpenFlagDialog = (rating: ContestRatingWithDetails, makeValid: boolean) => {
     setSelectedRating(rating);
     setFlagTargetState(makeValid);
     setFlagReason(rating.moderationReason || "");
@@ -214,7 +217,7 @@ export function ContestRatings({ eventId }: ContestRatingsProps) {
                 className="pl-9"
               />
             </div>
-            <Select value={filterValidity} onValueChange={(v: any) => setFilterValidity(v)}>
+            <Select value={filterValidity} onValueChange={(v) => setFilterValidity(v as "all" | "valid" | "flagged")}>
               <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder="Validity" />
               </SelectTrigger>
@@ -255,7 +258,7 @@ export function ContestRatings({ eventId }: ContestRatingsProps) {
               </TableHeader>
               <TableBody>
                 {filteredRatings && filteredRatings.length > 0 ? (
-                  filteredRatings.map((rating: any) => (
+                  filteredRatings.map((rating) => (
                     <TableRow key={rating.id} className={!rating.isValid ? "bg-red-50/40 dark:bg-red-950/20" : ""}>
                       <TableCell className="font-semibold">{rating.projectName}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{rating.creatorName}</TableCell>

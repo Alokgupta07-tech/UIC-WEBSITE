@@ -131,8 +131,8 @@ export default function AdminTeam() {
       const url = await uploadTeamPhoto(file);
       setForm((f) => ({ ...f, avatar_url: url }));
       toast.success("Photo uploaded");
-    } catch (e: any) {
-      toast.error(e.message || "Upload failed");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
     }

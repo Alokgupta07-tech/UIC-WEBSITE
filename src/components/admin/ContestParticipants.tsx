@@ -53,7 +53,7 @@ import {
   Plus
 } from "lucide-react";
 import { format } from "date-fns";
-import type { VerificationStatus } from "@/types";
+import type { ContestParticipant, VerificationStatus } from "@/types";
 
 interface ContestParticipantsProps {
   eventId: string;
@@ -91,7 +91,7 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<VerificationStatus | "all">("all");
-  const [selectedParticipant, setSelectedParticipant] = useState<any>(null);
+  const [selectedParticipant, setSelectedParticipant] = useState<ContestParticipant | null>(null);
   const [showVerifyDialog, setShowVerifyDialog] = useState(false);
   const [verificationNote, setVerificationNote] = useState("");
   const [showCSVUpload, setShowCSVUpload] = useState(false);
@@ -127,7 +127,7 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
     setNewNote("");
   };
 
-  const handleDelete = async (participant: any) => {
+  const handleDelete = async (participant: ContestParticipant) => {
     if (!confirm(`Are you sure you want to remove ${participant.participantName} from this contest?`)) {
       return;
     }
@@ -171,7 +171,7 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
     return matchesSearch && matchesFilter;
   });
 
-  const handleVerify = (participant: any) => {
+  const handleVerify = (participant: ContestParticipant) => {
     setSelectedParticipant(participant);
     setVerificationNote(participant.rejectionOrAdminNote || "");
     setShowVerifyDialog(true);
@@ -287,7 +287,7 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
                 className="pl-9"
               />
             </div>
-            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
+            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as VerificationStatus | "all")}>
               <SelectTrigger className="w-48">
                 <SelectValue />
               </SelectTrigger>
@@ -469,7 +469,7 @@ export function ContestParticipants({ eventId }: ContestParticipantsProps) {
 
               <div className="space-y-1.5">
                 <Label htmlFor="part-status">Initial Verification Status</Label>
-                <Select value={newStatus} onValueChange={(val: any) => setNewStatus(val)}>
+                <Select value={newStatus} onValueChange={(val) => setNewStatus(val as VerificationStatus)}>
                   <SelectTrigger id="part-status">
                     <SelectValue />
                   </SelectTrigger>
