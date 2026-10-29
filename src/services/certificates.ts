@@ -6,7 +6,10 @@
 // Nothing here trusts certificate data supplied by the client.
 import { supabase } from "@/integrations/supabase/client";
 import { isMissingTableError } from "@/services/supabaseErrors";
-import { SITE_URL } from "@/features/seo/seoConfig";
+import { CERTIFICATE_SIGNATORIES, loadCertificateSignatureDataUrl } from "@/lib/certificateSignatories";
+import { buildVerificationUrl } from "@/lib/certificateUrls";
+import { getCertificatePdfBlob } from "@/lib/certificatePdf";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import type {
   Certificate,
   CertificateStatus,
@@ -20,7 +23,7 @@ import type {
 
 /** Path of the public verification page. Kept here so the QR payload, the
  *  share link and the router all agree on one shape. */
-export const VERIFY_PATH = "/verify/certificate";
+export { VERIFY_PATH, buildVerificationUrl } from "@/lib/certificateUrls";
 
 /** A verification token is 32 lowercase hex characters (128 bits). */
 const TOKEN_PATTERN = /^[0-9a-f]{32}$/;
@@ -171,13 +174,13 @@ function mapCertificate(row: CertificateRow): Certificate {
     organizerName: row.organizer_name,
     organizerOrganization: row.organizer_organization,
 
-    signerName: row.signer_name,
-    signerDesignation: row.signer_designation,
-    signerSignatureUrl: row.signer_signature_url,
+    signerName: CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName,
+    signerDesignation: CERTIFICATE_SIGNATORIES.facultyCoordinator.designation,
+    signerSignatureUrl: CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath,
 
-    signer2Name: row.signer2_name ?? null,
-    signer2Designation: row.signer2_designation ?? null,
-    signer2SignatureUrl: row.signer2_signature_url ?? null,
+    signer2Name: CERTIFICATE_SIGNATORIES.president.printedName,
+    signer2Designation: CERTIFICATE_SIGNATORIES.president.designation,
+    signer2SignatureUrl: CERTIFICATE_SIGNATORIES.president.signaturePath,
 
     certificateFileUrl: row.certificate_file_url,
 
@@ -243,11 +246,6 @@ export function extractVerificationToken(raw: string): string | null {
 
   const candidate = (segments[certificateIndex + 1] ?? "").toLowerCase();
   return TOKEN_PATTERN.test(candidate) ? candidate : null;
-}
-
-/** Absolute link to the public verification page for a token. */
-export function buildVerificationUrl(token: string): string {
-  return `${SITE_URL}${VERIFY_PATH}/${token}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -340,12 +338,12 @@ export async function verifyCertificate(token: string): Promise<CertificateVerif
     eventCategory: row.event_category ?? null,
     organizerName: row.organizer_name ?? null,
     organizerOrganization: row.organizer_organization ?? null,
-    signerName: row.signer_name ?? null,
-    signerDesignation: row.signer_designation ?? null,
-    signerSignatureUrl: row.signer_signature_url ?? null,
-    signer2Name: row.signer2_name ?? null,
-    signer2Designation: row.signer2_designation ?? null,
-    signer2SignatureUrl: row.signer2_signature_url ?? null,
+    signerName: CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName,
+    signerDesignation: CERTIFICATE_SIGNATORIES.facultyCoordinator.designation,
+    signerSignatureUrl: CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath,
+    signer2Name: CERTIFICATE_SIGNATORIES.president.printedName,
+    signer2Designation: CERTIFICATE_SIGNATORIES.president.designation,
+    signer2SignatureUrl: CERTIFICATE_SIGNATORIES.president.signaturePath,
     certificateFileUrl: row.certificate_file_url ?? null,
     issueDate: row.issue_date ?? null,
     verifiedAt: row.verified_at ?? new Date().toISOString(),
@@ -477,20 +475,24 @@ export async function issueCertificate(
       throw new Error("Enter dates in YYYY-MM-DD format.");
     }
   }
+  await Promise.all([
+    loadCertificateSignatureDataUrl("facultyCoordinator"),
+    loadCertificateSignatureDataUrl("president"),
+  ]);
 
-  const insertPayload: Record<string, unknown> = {
+  const insertPayload: TablesInsert<"certificates"> = {
     event_id: input.event_id,
     recipient_name: input.recipient_name.trim(),
     recipient_email: input.recipient_email?.trim().toLowerCase() || null,
     certificate_type: input.certificate_type?.trim() || undefined,
     organizer_name: input.organizer_name?.trim() || null,
     organizer_organization: input.organizer_organization?.trim() || undefined,
-    signer_name: input.signer_name?.trim() || null,
-    signer_designation: input.signer_designation?.trim() || null,
-    signer_signature_url: input.signer_signature_url?.trim() || null,
-    signer2_name: input.signer2_name?.trim() || null,
-    signer2_designation: input.signer2_designation?.trim() || null,
-    signer2_signature_url: input.signer2_signature_url?.trim() || null,
+    signer_name: CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName,
+    signer_designation: CERTIFICATE_SIGNATORIES.facultyCoordinator.designation,
+    signer_signature_url: CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath,
+    signer2_name: CERTIFICATE_SIGNATORIES.president.printedName,
+    signer2_designation: CERTIFICATE_SIGNATORIES.president.designation,
+    signer2_signature_url: CERTIFICATE_SIGNATORIES.president.signaturePath,
     certificate_file_url: input.certificate_file_url?.trim() || null,
     issue_date: input.issue_date || undefined,
     role: input.role?.trim() || null,
@@ -625,11 +627,6 @@ export async function updateCertificate(
   if (updates.custom_title !== undefined) payload.custom_title = updates.custom_title?.trim() || null;
   if (updates.special_recognition !== undefined) payload.special_recognition = updates.special_recognition?.trim() || null;
   if (updates.template_key !== undefined) payload.template_key = updates.template_key.trim();
-  if (updates.signer_name !== undefined) payload.signer_name = updates.signer_name?.trim() || null;
-  if (updates.signer_designation !== undefined) payload.signer_designation = updates.signer_designation?.trim() || null;
-  if (updates.signer2_name !== undefined) payload.signer2_name = updates.signer2_name?.trim() || null;
-  if (updates.signer2_designation !== undefined) payload.signer2_designation = updates.signer2_designation?.trim() || null;
-
   const { data, error } = await supabase
     .from("certificates")
     .update(payload)
@@ -725,16 +722,17 @@ export async function deleteCertificate(id: string): Promise<void> {
 /** Increment certificate download count */
 export async function incrementDownloadCount(id: string): Promise<void> {
   try {
-    await supabase.rpc("increment_certificate_download", { p_certificate_id: id });
+    const { error } = await supabase.rpc("increment_certificate_download", { p_certificate_id: id });
+    if (!error) return;
   } catch {
-    // Fallback direct update
-    try {
-      const { data } = await supabase.from("certificates").select("download_count").eq("id", id).single();
-      const current = (data?.download_count as number) || 0;
-      await supabase.from("certificates").update({ download_count: current + 1 }).eq("id", id);
-    } catch {
-      // Non-fatal
-    }
+    // Continue to the RLS-checked fallback for installations without the RPC.
+  }
+  try {
+    const { data } = await supabase.from("certificates").select("download_count").eq("id", id).single();
+    const current = data?.download_count ?? 0;
+    await supabase.from("certificates").update({ download_count: current + 1 }).eq("id", id);
+  } catch {
+    // Non-fatal: the file download must still succeed if optional analytics fail.
   }
 }
 
@@ -754,7 +752,9 @@ export async function getCertificateAuditLogs(certificateId?: string): Promise<C
       oldStatus: row.old_status,
       newStatus: row.new_status,
       reason: row.reason,
-      metadata: row.metadata,
+      metadata: row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+        ? row.metadata as Record<string, unknown>
+        : null,
       createdAt: row.created_at,
     }));
   } catch {
@@ -776,7 +776,9 @@ export async function getCertificateEmailLogs(certificateId?: string): Promise<C
       recipientEmail: row.recipient_email,
       subject: row.subject,
       providerMessageId: row.provider_message_id,
-      status: row.status,
+      status: ["pending", "sent", "delivered", "failed", "bounced"].includes(row.status)
+        ? row.status as CertificateEmailLog["status"]
+        : "failed",
       attemptCount: row.attempt_count ?? 1,
       lastAttemptAt: row.last_attempt_at,
       errorDetails: row.error_details,
@@ -787,55 +789,57 @@ export async function getCertificateEmailLogs(certificateId?: string): Promise<C
   }
 }
 
-/** Update certificate email delivery status and log result */
-export async function updateCertificateEmailStatus(
-  certificateId: string,
-  recipientEmail: string,
-  status: CertificateEmailStatus,
-  errorDetails?: string | null
-): Promise<void> {
-  const now = new Date().toISOString();
-  const { error: updateError } = await supabase
-    .from("certificates")
-    .update({
-      email_status: status,
-      email_sent_at: status === "sent" ? now : undefined,
-      email_error: errorDetails || null,
-    })
-    .eq("id", certificateId);
-  if (updateError) throw updateError;
-
-  try {
-    await supabase.from("certificate_email_logs").insert({
-      certificate_id: certificateId,
-      recipient_email: recipientEmail,
-      subject: "Your Official Certificate from UIC SRM University–AP",
-      status: status === "sent" ? "sent" : status === "failed" ? "failed" : "pending",
-      attempt_count: 1,
-      last_attempt_at: now,
-      error_details: errorDetails || null,
-    });
-  } catch {
-    // Non-fatal if table not migrated yet
-  }
-}
-
 /**
  * Send or re-send certificate via Email.
  * Attempts Supabase Edge Function `send-certificate-email`.
  * Missing email infrastructure is a failure; never report simulated delivery as sent.
  */
 export async function sendCertificateEmail(
-  certificate: Certificate
+  certificate: Certificate,
+  options: { testRecipientEmail?: string } = {}
 ): Promise<{ success: boolean; message: string }> {
   if (!certificate.recipientEmail) {
     throw new Error("Recipient does not have an email address specified.");
   }
 
-  // Update to sending
-  await updateCertificateEmailStatus(certificate.id, certificate.recipientEmail, "sending");
+  const testRecipientEmail = options.testRecipientEmail?.trim().toLowerCase();
+  if (testRecipientEmail && !EMAIL_PATTERN.test(testRecipientEmail)) {
+    throw new Error("Enter a valid test recipient email address.");
+  }
+
+  let pdfBlob: Blob;
+  try {
+    pdfBlob = await getCertificatePdfBlob({
+      certificateNumber: certificate.certificateNumber,
+      verificationToken: certificate.verificationToken,
+      recipientName: certificate.recipientName,
+      eventTitle: certificate.eventTitle || "UIC Event",
+      eventDate: certificate.eventDate,
+      eventVenue: certificate.eventVenue,
+      eventIsOnline: certificate.eventIsOnline,
+      certificateType: certificate.certificateType,
+      customTitle: certificate.customTitle,
+      role: certificate.role,
+      team: certificate.team,
+      contributionSummary: certificate.contributionSummary,
+      specialRecognition: certificate.specialRecognition,
+      organizerOrganization: certificate.organizerOrganization,
+      issueDate: certificate.issueDate,
+      themeKey: certificate.templateKey,
+    });
+  } catch (error) {
+    if (import.meta.env.DEV) console.error("Signed certificate PDF generation failed", error);
+    throw new Error("The signed certificate PDF could not be generated. No email was sent.");
+  }
 
   try {
+    const pdfBytes = new Uint8Array(await pdfBlob.arrayBuffer());
+    let pdfBinary = "";
+    for (let offset = 0; offset < pdfBytes.length; offset += 0x8000) {
+      pdfBinary += String.fromCharCode(...pdfBytes.subarray(offset, offset + 0x8000));
+    }
+    const pdfBase64 = btoa(pdfBinary);
+
     const { data, error } = await supabase.functions.invoke("send-certificate-email", {
       body: {
         certificateId: certificate.id,
@@ -847,22 +851,26 @@ export async function sendCertificateEmail(
         role: certificate.role,
         team: certificate.team,
         customTitle: certificate.customTitle,
+        attachment: {
+          filename: `${certificate.certificateNumber}.pdf`,
+          content: pdfBase64,
+        },
+        testRecipientEmail: testRecipientEmail || null,
       },
     });
 
     if (error) throw error;
     if (data?.success !== true || !data?.messageId) {
-      throw new Error("The email provider did not confirm delivery.");
+      throw new Error("The email provider did not accept the message.");
     }
-    await updateCertificateEmailStatus(certificate.id, certificate.recipientEmail, "sent");
-    return { success: true, message: data?.message || `Certificate emailed to ${certificate.recipientEmail}` };
+    return {
+      success: true,
+      message: testRecipientEmail
+        ? `Test email accepted by provider for ${testRecipientEmail}`
+        : data?.message || `Email accepted by provider for ${certificate.recipientEmail}`,
+    };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Edge function unavailable";
-    try {
-      await updateCertificateEmailStatus(certificate.id, certificate.recipientEmail, "failed", errorMsg);
-    } catch (statusError) {
-      if (import.meta.env.DEV) console.error("Could not save certificate email failure status", statusError);
-    }
     throw new Error(`Email delivery failed: ${errorMsg}`);
   }
 }

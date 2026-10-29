@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Check, Copy, Download, ExternalLink, Share2 } from "lucide-react";
+import { Check, Copy, Download, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { buildVerificationUrl } from "@/services/certificates";
+import { downloadCertificatePdf } from "@/lib/certificatePdf";
 import type { CertificateVerification } from "@/types";
 
 interface CertificateActionsProps {
@@ -41,12 +42,12 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 /**
- * Actions for a verified certificate: open the certificate file, download it,
+ * Actions for a verified certificate: generate and download the signed PDF,
  * share the public verification link and copy the certificate ID.
  *
  * The share link always points at the public verification page, never at the
- * signed-in dashboard. File actions only appear when the record actually carries
- * a file URL — no dead buttons.
+ * signed-in dashboard. The generated file uses verified certificate data and
+ * the same official signature images as the preview and admin PDF.
  */
 export function CertificateActions({
   data,
@@ -54,9 +55,43 @@ export function CertificateActions({
   showShare = true,
 }: CertificateActionsProps) {
   const [copiedId, setCopiedId] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const isValid = data.verdict === "verified";
-  const fileUrl = isValid ? data.certificateFileUrl : null;
   const shareUrl = token ? buildVerificationUrl(token) : null;
+
+  const handleDownloadCertificate = async () => {
+    if (!isValid || !data.certificateNumber || !data.recipientName || !token) {
+      toast.error("Certificate details are incomplete, so a signed PDF cannot be generated.");
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      await downloadCertificatePdf({
+        certificateNumber: data.certificateNumber,
+        verificationToken: token,
+        recipientName: data.recipientName,
+        eventTitle: data.eventTitle || "UIC Event",
+        eventDate: data.eventDate,
+        eventVenue: data.eventVenue,
+        eventIsOnline: data.eventIsOnline,
+        certificateType: data.certificateType,
+        customTitle: data.customTitle,
+        role: data.role,
+        team: data.team,
+        contributionSummary: data.contributionSummary,
+        specialRecognition: data.specialRecognition,
+        organizerOrganization: data.organizerOrganization,
+        issueDate: data.issueDate,
+        themeKey: data.templateKey,
+      });
+      toast.success("Signed certificate PDF downloaded.");
+    } catch {
+      toast.error("Could not generate the signed PDF. Check that the official signature assets are available.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleCopyId = async () => {
     if (!data.certificateNumber) return;
@@ -96,25 +131,16 @@ export function CertificateActions({
 
   return (
     <div className="flex flex-wrap gap-2">
-      {fileUrl && (
-        <>
-          <Button size="sm" variant="outline" className="gap-2" asChild>
-            <a href={fileUrl} target="_blank" rel="noreferrer">
-              <ExternalLink className="h-4 w-4" aria-hidden />
-              View Certificate
-            </a>
-          </Button>
-          <Button
-            size="sm"
-            className="gap-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-            asChild
-          >
-            <a href={fileUrl} target="_blank" rel="noreferrer" download>
-              <Download className="h-4 w-4" aria-hidden />
-              Download
-            </a>
-          </Button>
-        </>
+      {isValid && token && (
+        <Button
+          size="sm"
+          className="gap-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+          onClick={() => void handleDownloadCertificate()}
+          disabled={isDownloading}
+        >
+          <Download className="h-4 w-4" aria-hidden />
+          {isDownloading ? "Generating signed PDF…" : "Download signed PDF"}
+        </Button>
       )}
 
       {showShare && shareUrl && (

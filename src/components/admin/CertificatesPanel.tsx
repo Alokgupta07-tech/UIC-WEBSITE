@@ -71,6 +71,7 @@ import { CertificatePreviewDialog } from "@/components/admin/certificates/Certif
 import { ReissueCertificateDialog } from "@/components/admin/certificates/ReissueCertificateDialog";
 import { CertificateAuditDialog } from "@/components/admin/certificates/CertificateAuditDialog";
 import { BatchIssueWizard } from "@/components/admin/certificates/BatchIssueWizard";
+import { BulkCertificateDistribution } from "@/components/admin/certificates/BulkCertificateDistribution";
 
 import { getAllEventsAdmin } from "@/services/events";
 import {
@@ -85,6 +86,7 @@ import {
   type CertificateInput,
 } from "@/services/certificates";
 import { downloadCertificatePdf } from "@/lib/certificatePdf";
+import { CERTIFICATE_SIGNATORIES } from "@/lib/certificateSignatories";
 import {
   CERTIFICATE_TEAMS,
   ALL_ROLES,
@@ -106,10 +108,6 @@ const INITIAL_FORM = {
   template_key: "amethyst-prestige",
   contribution_summary: "",
   organizer_organization: "Unstop Igniters Club, SRM AP",
-  signer_name: "Faculty Coordinator",
-  signer_designation: "Unstop Igniters Club, SRM University–AP",
-  signer2_name: "President / Lead",
-  signer2_designation: "Student Body, SRM University–AP",
   issue_date: "",
   auto_email: true,
 };
@@ -131,7 +129,7 @@ function downloadTextFile(content: string, fileName: string, mimeType: string) {
 
 export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"directory" | "single" | "batch" | "logs">("directory");
+  const [activeTab, setActiveTab] = useState<"directory" | "distribution" | "single" | "batch" | "logs">("directory");
   const [eventId, setEventId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "issued" | "revoked">("all");
@@ -260,10 +258,6 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
           template_key: form.template_key,
           contribution_summary: form.contribution_summary,
           organizer_organization: form.organizer_organization,
-          signer_name: form.signer_name,
-          signer_designation: form.signer_designation,
-          signer2_name: form.signer2_name,
-          signer2_designation: form.signer2_designation,
           issue_date: form.issue_date || null,
         },
         createdBy
@@ -353,30 +347,6 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
     onError: () => toast.error("Failed to delete the certificate."),
   });
 
-  // Batch email selected
-  const handleBatchEmail = async () => {
-    const targets = (certificates || []).filter(
-      (c) => selectedCertIds.has(c.id) && c.recipientEmail
-    );
-    if (targets.length === 0) {
-      toast.info("No selected certificates have valid recipient emails.");
-      return;
-    }
-
-    toast.info(`Sending emails to ${targets.length} recipient(s)…`);
-    let sent = 0;
-    for (const cert of targets) {
-      try {
-        await sendCertificateEmail(cert);
-        sent++;
-      } catch {
-        // continue
-      }
-    }
-    toast.success(`Dispatched ${sent} certificate email(s)!`);
-    invalidate();
-  };
-
   // Export CSV
   const handleExportCsv = () => {
     const list = selectedCertIds.size > 0
@@ -441,7 +411,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
 
         <Card className="p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-            Emails Delivered
+            Emails Accepted by Provider
           </p>
           <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-0.5">
             {stats.emailSent}
@@ -468,11 +438,15 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
       </div>
 
       {/* Main Tabs Navigation */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "directory" | "single" | "batch" | "logs")} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-11">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "directory" | "distribution" | "single" | "batch" | "logs")} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-11">
           <TabsTrigger value="directory" className="gap-2 text-xs sm:text-sm font-semibold">
             <Award className="h-4 w-4" />
             Registry & Directory
+          </TabsTrigger>
+          <TabsTrigger value="distribution" className="gap-2 text-xs sm:text-sm font-semibold">
+            <Mail className="h-4 w-4" />
+            Bulk Distribution
           </TabsTrigger>
           <TabsTrigger value="single" className="gap-2 text-xs sm:text-sm font-semibold">
             <Sparkles className="h-4 w-4" />
@@ -533,7 +507,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                     <Button
                       size="sm"
                       className="gap-1.5 h-9 text-xs bg-gradient-to-r from-blue-600 to-indigo-700 text-white"
-                      onClick={handleBatchEmail}
+                      onClick={() => setActiveTab("distribution")}
                     >
                       <Mail className="h-3.5 w-3.5" />
                       Email Selected ({selectedCertIds.size})
@@ -571,7 +545,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Email Statuses</SelectItem>
-                    <SelectItem value="sent">Sent / Delivered</SelectItem>
+                    <SelectItem value="sent">Provider accepted</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="failed">Failed</SelectItem>
                   </SelectContent>
@@ -664,7 +638,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                               }
                               className="text-[10px] uppercase font-semibold"
                             >
-                              {cert.emailStatus}
+                              {cert.emailStatus === "sent" ? "Accepted" : cert.emailStatus}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
@@ -726,8 +700,8 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                                   size="icon"
                                   className="h-7 w-7 text-blue-600 hover:text-blue-700"
                                   onClick={() => sendEmailMutation.mutate(cert)}
-                                  disabled={sendEmailMutation.isPending}
-                                  title="Dispatch Certificate Email"
+                                  disabled={sendEmailMutation.isPending || cert.status !== "issued" || cert.emailStatus === "sent"}
+                                  title={cert.emailStatus === "failed" ? "Retry certificate email" : cert.emailStatus === "sent" ? "Accepted by provider" : "Send certificate email"}
                                 >
                                   <Mail className="h-3.5 w-3.5" />
                                 </Button>
@@ -809,6 +783,13 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="distribution" className="space-y-4">
+          <BulkCertificateDistribution
+            certificates={(certificates || []).filter((certificate) => selectedCertIds.has(certificate.id))}
+            onComplete={invalidate}
+          />
         </TabsContent>
 
         {/* ================= TAB 2: ISSUE SINGLE CERTIFICATE ================= */}
@@ -966,47 +947,17 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
               {/* Signatories */}
               <div className="grid gap-4 md:grid-cols-2 pt-2 border-t">
                 <div className="space-y-3">
-                  <p className="text-xs font-bold uppercase text-primary tracking-wider">
-                    Signatory 1
-                  </p>
-                  <div>
-                    <Label htmlFor="s1-name">Name</Label>
-                    <Input
-                      id="s1-name"
-                      value={form.signer_name}
-                      onChange={(e) => setForm((prev) => ({ ...prev, signer_name: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="s1-desig">Designation</Label>
-                    <Input
-                      id="s1-desig"
-                      value={form.signer_designation}
-                      onChange={(e) => setForm((prev) => ({ ...prev, signer_designation: e.target.value }))}
-                    />
-                  </div>
+                  <img src={CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath} alt="Faculty Coordinator signature" className="h-10 w-36 object-contain" />
+                  <p className="text-xs font-bold uppercase text-primary tracking-wider">Faculty Coordinator</p>
+                  <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName}</p>
+                  <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.facultyCoordinator.designation}</p>
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-xs font-bold uppercase text-primary tracking-wider">
-                    Signatory 2
-                  </p>
-                  <div>
-                    <Label htmlFor="s2-name">Name</Label>
-                    <Input
-                      id="s2-name"
-                      value={form.signer2_name}
-                      onChange={(e) => setForm((prev) => ({ ...prev, signer2_name: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="s2-desig">Designation</Label>
-                    <Input
-                      id="s2-desig"
-                      value={form.signer2_designation}
-                      onChange={(e) => setForm((prev) => ({ ...prev, signer2_designation: e.target.value }))}
-                    />
-                  </div>
+                  <img src={CERTIFICATE_SIGNATORIES.president.signaturePath} alt="President Revanth Boina signature" className="h-10 w-36 object-contain" />
+                  <p className="text-xs font-bold uppercase text-primary tracking-wider">President</p>
+                  <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.president.printedName}</p>
+                  <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.president.designation}</p>
                 </div>
               </div>
 

@@ -36,6 +36,7 @@ import { formatEventDate } from "@/lib/dates";
 import { buildVerificationUrl } from "@/services/certificates";
 import { createQrSvg } from "@/lib/qr";
 import { downloadCertificatePdf } from "@/lib/certificatePdf";
+import { CERTIFICATE_SIGNATORIES } from "@/lib/certificateSignatories";
 import type { CertificateVerification } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -451,6 +452,9 @@ interface PrintableCertificateProps {
 export function PrintableCertificate({ data, token, initialTheme }: PrintableCertificateProps) {
   const certRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState(false);
+  const [signatureAssetsLoaded, setSignatureAssetsLoaded] = useState({ facultyCoordinator: false, president: false });
+  const [signatureAssetError, setSignatureAssetError] = useState(false);
+  const signaturesReady = signatureAssetsLoaded.facultyCoordinator && signatureAssetsLoaded.president && !signatureAssetError;
 
   // Auto-detect theme based on event title & certificate type
   const detectedThemeKey = useMemo(() => {
@@ -478,10 +482,10 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
   const certId = data.certificateNumber || "UIC-SRMAP-2026";
   const issueDate = formatEventDate(data.issueDate) || eventDate;
   const certType = data.certificateType || "Participation";
-  const signerName = data.signerName || "Faculty Coordinator";
-  const signerDesig = data.signerDesignation || "Unstop Igniters Club, SRM AP";
-  const signer2Name = data.signer2Name || null;
-  const signer2Desig = data.signer2Designation || null;
+  const signerName = CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName;
+  const signerDesig = CERTIFICATE_SIGNATORIES.facultyCoordinator.designation;
+  const signer2Name = CERTIFICATE_SIGNATORIES.president.printedName;
+  const signer2Desig = CERTIFICATE_SIGNATORIES.president.designation;
   const verifyUrl = token ? buildVerificationUrl(token) : "";
 
   // Dynamic citation text with custom title and contribution summary support
@@ -518,10 +522,18 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
   }, [verifyUrl]);
 
   const handlePrint = useCallback(() => {
+    if (!signaturesReady) {
+      toast.error("The official signature images have not loaded. Check the signature assets and try again.");
+      return;
+    }
     window.print();
-  }, []);
+  }, [signaturesReady]);
 
   const handleDownloadPdf = async () => {
+    if (!signaturesReady) {
+      toast.error("The official signature images have not loaded. The certificate PDF was not created.");
+      return;
+    }
     setIsDownloadingPdf(true);
     try {
       await downloadCertificatePdf({
@@ -541,7 +553,7 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
         organizerOrganization: org,
         signerName,
         signerDesignation: signerDesig,
-        signer2Name: signer2Name || "President / Lead",
+        signer2Name: signer2Name || "President",
         signer2Designation: signer2Desig || "Student Body, SRM University–AP",
         issueDate,
         themeKey: selectedThemeKey,
@@ -573,6 +585,7 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
           <div className="flex items-center gap-2">
             <Button
               onClick={handlePrint}
+              disabled={!signaturesReady}
               className="gap-2 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 hover:opacity-95 shadow-sm text-white font-medium"
             >
               <Printer className="h-4 w-4" />
@@ -581,7 +594,7 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
 
             <Button
               onClick={handleDownloadPdf}
-              disabled={isDownloadingPdf}
+              disabled={isDownloadingPdf || !signaturesReady}
               variant="outline"
               className="gap-2 border-emerald-600/50 hover:bg-emerald-50 text-emerald-700 dark:text-emerald-300 font-medium"
             >
@@ -603,6 +616,12 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
               {copiedId ? "Copied" : "Copy ID"}
             </Button>
           </div>
+
+          {signatureAssetError && (
+            <p role="alert" className="text-xs font-medium text-destructive">
+              An official signature image is missing or could not be loaded. Certificate printing and download are disabled.
+            </p>
+          )}
 
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
@@ -901,30 +920,18 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
           </div>
 
           {/* Section 5: Authentication Footer (Single or Dual Signatories) */}
-          <div className={`w-full grid ${signer2Name ? "grid-cols-4" : "grid-cols-3"} items-end gap-2 pt-2`}>
+          <div className="w-full grid grid-cols-3 grid-rows-[auto_auto] items-end gap-x-2 gap-y-1 pt-2">
             
             {/* 1. Left: Official Signatory 1 */}
-            <div className="text-center space-y-1">
-              {data.signerSignatureUrl ? (
-                <img
-                  src={data.signerSignatureUrl}
-                  alt={`Signature of ${signerName}`}
-                  className="h-10 mx-auto object-contain"
-                  style={{ printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
-                />
-              ) : (
-                <div className="h-10 flex items-end justify-center">
-                  <span
-                    className="italic text-base sm:text-lg font-semibold tracking-wide"
-                    style={{
-                      color: theme.outerBorderColor,
-                      fontFamily: "'Brush Script MT', 'Segoe Script', cursive, serif",
-                    }}
-                  >
-                    {signerName}
-                  </span>
-                </div>
-              )}
+            <div className="col-start-1 row-start-1 text-center space-y-1">
+              <img
+                src={CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath}
+                alt={`Handwritten signature of ${signerName}`}
+                className="h-12 w-full max-w-40 mx-auto object-contain"
+                onLoad={() => setSignatureAssetsLoaded((loaded) => ({ ...loaded, facultyCoordinator: true }))}
+                onError={() => setSignatureAssetError(true)}
+                style={{ printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
+              />
               <div
                 className="mx-auto w-28 sm:w-36 h-[1.5px]"
                 style={{ background: theme.signatureLineColor }}
@@ -940,47 +947,30 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
               </p>
             </div>
 
-            {/* 2. Optional Second Signatory */}
-            {signer2Name && (
-              <div className="text-center space-y-1">
-                {data.signer2SignatureUrl ? (
-                  <img
-                    src={data.signer2SignatureUrl}
-                    alt={`Signature of ${signer2Name}`}
-                    className="h-10 mx-auto object-contain"
-                    style={{ printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
-                  />
-                ) : (
-                  <div className="h-10 flex items-end justify-center">
-                    <span
-                      className="italic text-base sm:text-lg font-semibold tracking-wide"
-                      style={{
-                        color: theme.outerBorderColor,
-                        fontFamily: "'Brush Script MT', 'Segoe Script', cursive, serif",
-                      }}
-                    >
-                      {signer2Name}
-                    </span>
-                  </div>
-                )}
-                <div
-                  className="mx-auto w-28 sm:w-36 h-[1.5px]"
-                  style={{ background: theme.signatureLineColor }}
-                />
-                <p
-                  className="text-xs font-bold leading-tight"
-                  style={{ color: theme.outerBorderColor }}
-                >
-                  {signer2Name}
-                </p>
-                <p className="text-[9px] sm:text-[10px] text-gray-600 leading-tight">
-                  {signer2Desig || "Unstop Igniters Club, SRM AP"}
-                </p>
-              </div>
-            )}
+            {/* 2. Right: UIC President */}
+            <div className="col-start-3 row-start-1 text-center space-y-1">
+              <img
+                src={CERTIFICATE_SIGNATORIES.president.signaturePath}
+                alt={`Handwritten signature of ${signer2Name}`}
+                className="h-12 w-full max-w-40 mx-auto object-contain"
+                onLoad={() => setSignatureAssetsLoaded((loaded) => ({ ...loaded, president: true }))}
+                onError={() => setSignatureAssetError(true)}
+                style={{ printColorAdjust: "exact", WebkitPrintColorAdjust: "exact" }}
+              />
+              <div
+                className="mx-auto w-28 sm:w-36 h-[1.5px]"
+                style={{ background: theme.signatureLineColor }}
+              />
+              <p className="text-xs font-bold leading-tight" style={{ color: theme.outerBorderColor }}>
+                {signer2Name}
+              </p>
+              <p className="text-[9px] sm:text-[10px] text-gray-600 leading-tight">
+                {signer2Desig}
+              </p>
+            </div>
 
             {/* 3. Center: 3D Metallic Embossed Seal with Silk Ribbons */}
-            <div className="flex flex-col items-center justify-center relative">
+            <div className="col-start-2 row-start-1 flex flex-col items-center justify-center relative">
               {/* Dangling Silk Ribbon Tails */}
               <div className="absolute top-[42px] flex items-center justify-center pointer-events-none z-0">
                 {/* Left Ribbon */}
@@ -1037,7 +1027,7 @@ export function PrintableCertificate({ data, token, initialTheme }: PrintableCer
             </div>
 
             {/* 4. Right: Verification QR & Monospace ID */}
-            <div className="text-center space-y-1">
+            <div className="col-start-2 row-start-2 text-center space-y-1">
               <div className="flex justify-center">
                 <div className="p-1 rounded-sm bg-white border shadow-2xs">
                   {qrSvg ? (

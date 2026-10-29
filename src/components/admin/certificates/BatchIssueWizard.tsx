@@ -55,6 +55,7 @@ import {
   renderContributionBlurb,
 } from "@/lib/certificateRoles";
 import type { Certificate } from "@/types";
+import { CERTIFICATE_SIGNATORIES } from "@/lib/certificateSignatories";
 
 interface BatchIssueWizardProps {
   createdBy: string | null;
@@ -72,10 +73,6 @@ export function BatchIssueWizard({
   const [eventId, setEventId] = useState(initialEventId);
 
   // Shared defaults
-  const [signerName, setSignerName] = useState("Faculty Coordinator");
-  const [signerDesignation, setSignerDesignation] = useState("Unstop Igniters Club, SRM AP");
-  const [signer2Name, setSigner2Name] = useState("President / Lead");
-  const [signer2Designation, setSigner2Designation] = useState("Student Body, SRM AP");
   const [defaultRoleId, setDefaultRoleId] = useState("participant");
 
   // Mode: "attendance" or "csv"
@@ -275,10 +272,6 @@ export function BatchIssueWizard({
             team: r.team || null,
             contribution_summary: contribution || null,
             template_key: themeKey,
-            signer_name: signerName,
-            signer_designation: signerDesignation,
-            signer2_name: signer2Name,
-            signer2_designation: signer2Designation,
           },
           createdBy
         );
@@ -382,48 +375,15 @@ export function BatchIssueWizard({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 pt-2 border-t">
-              <div className="space-y-3">
-                <p className="text-xs font-bold uppercase text-primary tracking-wider">
-                  Primary Signatory
-                </p>
-                <div>
-                  <Label htmlFor="b-signer1">Signatory 1 Name</Label>
-                  <Input
-                    id="b-signer1"
-                    value={signerName}
-                    onChange={(e) => setSignerName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="b-signer1-d">Signatory 1 Designation</Label>
-                  <Input
-                    id="b-signer1-d"
-                    value={signerDesignation}
-                    onChange={(e) => setSignerDesignation(e.target.value)}
-                  />
-                </div>
+              <div className="rounded-lg border p-3">
+                <img src={CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath} alt="Faculty Coordinator signature preview" className="h-12 w-40 object-contain" />
+                <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName}</p>
+                <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.facultyCoordinator.designation}</p>
               </div>
-
-              <div className="space-y-3">
-                <p className="text-xs font-bold uppercase text-primary tracking-wider">
-                  Secondary Signatory (Optional)
-                </p>
-                <div>
-                  <Label htmlFor="b-signer2">Signatory 2 Name</Label>
-                  <Input
-                    id="b-signer2"
-                    value={signer2Name}
-                    onChange={(e) => setSigner2Name(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="b-signer2-d">Signatory 2 Designation</Label>
-                  <Input
-                    id="b-signer2-d"
-                    value={signer2Designation}
-                    onChange={(e) => setSigner2Designation(e.target.value)}
-                  />
-                </div>
+              <div className="rounded-lg border p-3">
+                <img src={CERTIFICATE_SIGNATORIES.president.signaturePath} alt="President Revanth Boina signature preview" className="h-12 w-40 object-contain" />
+                <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.president.printedName}</p>
+                <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.president.designation}</p>
               </div>
             </div>
 

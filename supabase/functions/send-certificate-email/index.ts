@@ -26,6 +26,8 @@ interface CertificateEmailPayload {
   role?: string | null;
   team?: string | null;
   customTitle?: string | null;
+  attachment: { filename: string; content: string };
+  testRecipientEmail?: string | null;
 }
 
 serve(async (req) => {
@@ -34,20 +36,26 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  try {
-    const suppliedPayload: CertificateEmailPayload = await req.json();
+  const suppliedPayload: CertificateEmailPayload = await req.json().catch(() => ({} as CertificateEmailPayload));
+  const authorization = req.headers.get("Authorization");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const publishableKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const authHeaders = authorization && publishableKey
+    ? { apikey: publishableKey, Authorization: authorization, "Content-Type": "application/json" }
+    : null;
+  let claimedForDelivery = false;
+  let attemptNumber = 1;
+  let deliveryEmail = "";
+  let deliverySubject = "";
 
-    const authorization = req.headers.get("Authorization");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const publishableKey = Deno.env.get("SUPABASE_ANON_KEY");
-    if (!authorization || !supabaseUrl || !publishableKey || !suppliedPayload.certificateId) {
+  try {
+    if (!authHeaders || !supabaseUrl || !suppliedPayload.certificateId) {
       return new Response(JSON.stringify({ error: "Authentication and a certificate ID are required." }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const authHeaders = { apikey: publishableKey, Authorization: authorization, "Content-Type": "application/json" };
     const adminResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/is_admin`, {
       method: "POST", headers: authHeaders, body: "{}",
     });
@@ -61,7 +69,7 @@ serve(async (req) => {
     // Load the record under the caller's JWT. This both enforces the existing
     // admin RLS policy and prevents forged recipient/details in the request.
     const certificateResponse = await fetch(
-      `${supabaseUrl}/rest/v1/certificates?id=eq.${encodeURIComponent(suppliedPayload.certificateId)}&select=id,status,recipient_email,recipient_name,certificate_number,verification_token,role,team,custom_title,event_id`,
+      `${supabaseUrl}/rest/v1/certificates?id=eq.${encodeURIComponent(suppliedPayload.certificateId)}&select=id,status,recipient_email,recipient_name,certificate_number,verification_token,role,team,custom_title,event_id,email_status`,
       { headers: authHeaders },
     );
     if (!certificateResponse.ok) throw new Error("Could not load the certificate for delivery.");
@@ -75,6 +83,31 @@ serve(async (req) => {
     }
     if (!record.recipient_email) {
       return new Response(JSON.stringify({ error: "This certificate has no recipient email address." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const testRecipientEmail = suppliedPayload.testRecipientEmail?.trim().toLowerCase() || null;
+    if (testRecipientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testRecipientEmail)) {
+      return new Response(JSON.stringify({ error: "Enter a valid test recipient address." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (
+      !suppliedPayload.attachment?.filename?.toLowerCase().endsWith(".pdf") ||
+      !suppliedPayload.attachment.content ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(suppliedPayload.attachment.content) ||
+      suppliedPayload.attachment.content.length > 10_000_000
+    ) {
+      return new Response(JSON.stringify({ error: "A valid signed certificate PDF is required." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const decodedAttachment = Uint8Array.from(atob(suppliedPayload.attachment.content), (character) => character.charCodeAt(0));
+    if (new TextDecoder().decode(decodedAttachment.subarray(0, 5)) !== "%PDF-") {
+      return new Response(JSON.stringify({ error: "The attachment is not a valid PDF file." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -113,9 +146,31 @@ serve(async (req) => {
       customTitle: record.custom_title,
     };
 
+    deliveryEmail = record.recipient_email;
+    deliverySubject = `Your Certificate | Unstop Igniters Club – ${events[0]?.title ?? "UIC Event"}`;
+    if (!testRecipientEmail) {
+      const logsResponse = await fetch(
+        `${supabaseUrl}/rest/v1/certificate_email_logs?certificate_id=eq.${encodeURIComponent(record.id)}&select=attempt_count&order=last_attempt_at.desc&limit=1`,
+        { headers: authHeaders },
+      );
+      if (logsResponse.ok) {
+        const previousLogs = await logsResponse.json();
+        attemptNumber = Math.max(1, Number(previousLogs?.[0]?.attempt_count ?? 0) + 1);
+      }
+    }
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const senderEmail = Deno.env.get("SENDER_EMAIL") || "certificates@unstopignitersclub.com";
-    const senderName = "Unstop Igniters Club — SRM AP";
+    const senderEmail = Deno.env.get("SENDER_EMAIL")?.trim().toLowerCase();
+    const senderName = "Unstop Igniters Club | SRM University–AP";
+    if (!resendApiKey || senderEmail !== "club.igniter@srmap.edu.in") {
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Email delivery is not configured for the authorized UIC sender. Configure RESEND_API_KEY and the verified SENDER_EMAIL secret.",
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const title = escapeHtml(payload.customTitle || (payload.role ? `Certificate of Appreciation (${payload.role})` : "Official Certificate of Achievement"));
     const recipientName = escapeHtml(payload.recipientName);
@@ -132,6 +187,33 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Claim the certificate atomically before calling the provider. The
+    // conditional update makes parallel clicks and direct endpoint retries
+    // unable to create a second message while a send is in progress.
+    if (!testRecipientEmail) {
+      const staleSendingCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const claimQuery = new URLSearchParams({
+        id: `eq.${record.id}`,
+        status: "eq.issued",
+        or: `(email_status.in.(pending,failed,skipped),email_status.is.null,and(email_status.eq.sending,updated_at.lt.${staleSendingCutoff}))`,
+        select: "id",
+      });
+      const claimResponse = await fetch(`${supabaseUrl}/rest/v1/certificates?${claimQuery.toString()}`, {
+        method: "PATCH",
+        headers: { ...authHeaders, Prefer: "return=representation" },
+        body: JSON.stringify({ email_status: "sending", email_error: null }),
+      });
+      if (!claimResponse.ok) throw new Error("Could not reserve this certificate for email delivery.");
+      const claimedRows = await claimResponse.json();
+      if (!claimedRows.length) {
+        return new Response(JSON.stringify({ error: record.email_status === "sent" ? "This certificate was already accepted by the provider." : "This certificate is already being sent. Wait before retrying." }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      claimedForDelivery = true;
     }
 
     const htmlBody = `
@@ -210,7 +292,7 @@ serve(async (req) => {
                 Unstop Igniters Club • SRM University–AP, Andhra Pradesh
               </p>
               <p style="margin: 0; font-size: 11px; color: #475569;">
-                This tamper-evident digital credential was cryptographically signed and stored in official institutional records.
+                This certificate is listed in the Unstop Igniters Club verification registry.
               </p>
             </td>
           </tr>
@@ -221,18 +303,28 @@ serve(async (req) => {
 </body>
 </html>`;
 
-    if (resendApiKey) {
+    {
+      const subject = deliverySubject;
+      const plainText = `Dear ${payload.recipientName},\n\nCongratulations!\n\nThank you for being part of ${payload.eventTitle}, organized by Unstop Igniters Club, SRM University–AP. We are pleased to share your ${payload.customTitle || payload.role || "certificate"}. Your signed certificate PDF is attached. You can also verify it at ${payload.verifyUrl}.\n\nWarm regards,\nUnstop Igniters Club\nSRM University–AP\nOfficial email: club.igniter@srmap.edu.in`;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${resendApiKey}`,
           "Content-Type": "application/json",
+          "Idempotency-Key": testRecipientEmail
+            ? `uic-certificate-test-${crypto.randomUUID()}`
+            : `uic-certificate-${record.id}`,
         },
         body: JSON.stringify({
           from: `${senderName} <${senderEmail}>`,
-          to: [payload.recipientEmail],
-          subject: `${title} — Unstop Igniters Club, SRM AP`,
+          to: [testRecipientEmail ?? payload.recipientEmail],
+          subject,
           html: htmlBody,
+          text: plainText,
+          attachments: [{
+            filename: suppliedPayload.attachment.filename.replace(/[^A-Za-z0-9_.-]/g, "_"),
+            content: suppliedPayload.attachment.content,
+          }],
         }),
       });
 
@@ -242,21 +334,63 @@ serve(async (req) => {
       }
 
       const resData = await res.json();
+      if (!testRecipientEmail) {
+        const acceptedAt = new Date().toISOString();
+        const statusResponse = await fetch(`${supabaseUrl}/rest/v1/certificates?id=eq.${encodeURIComponent(record.id)}`, {
+          method: "PATCH",
+          headers: { ...authHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify({ email_status: "sent", email_sent_at: acceptedAt, email_error: null }),
+        });
+        if (!statusResponse.ok) throw new Error("Provider accepted the email, but the certificate status could not be recorded.");
+        claimedForDelivery = false;
+        await fetch(`${supabaseUrl}/rest/v1/certificate_email_logs`, {
+          method: "POST",
+          headers: { ...authHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify({
+            certificate_id: record.id,
+            recipient_email: deliveryEmail,
+            subject: deliverySubject,
+            provider_message_id: resData.id,
+            status: "sent",
+            attempt_count: attemptNumber,
+            last_attempt_at: acceptedAt,
+          }),
+        });
+      }
       return new Response(
-        JSON.stringify({ success: true, messageId: resData.id, message: "Email sent successfully" }),
+        JSON.stringify({
+          success: true,
+          messageId: resData.id,
+          message: testRecipientEmail ? "Test email accepted by provider" : "Email accepted by provider",
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: "Email delivery is not configured. Set RESEND_API_KEY in Supabase secrets and retry.",
-      }),
-      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    if (claimedForDelivery && authHeaders && supabaseUrl && suppliedPayload.certificateId) {
+      const failedAt = new Date().toISOString();
+      await fetch(`${supabaseUrl}/rest/v1/certificates?id=eq.${encodeURIComponent(suppliedPayload.certificateId)}&email_status=eq.sending`, {
+        method: "PATCH",
+        headers: { ...authHeaders, Prefer: "return=minimal" },
+        body: JSON.stringify({ email_status: "failed", email_error: message }),
+      }).catch(() => undefined);
+      if (deliveryEmail) {
+        await fetch(`${supabaseUrl}/rest/v1/certificate_email_logs`, {
+          method: "POST",
+          headers: { ...authHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify({
+            certificate_id: suppliedPayload.certificateId,
+            recipient_email: deliveryEmail,
+            subject: deliverySubject || null,
+            status: "failed",
+            attempt_count: attemptNumber,
+            last_attempt_at: failedAt,
+            error_details: message.slice(0, 500),
+          }),
+        }).catch(() => undefined);
+      }
+    }
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

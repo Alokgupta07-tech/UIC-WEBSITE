@@ -21,18 +21,36 @@ export type Database = {
           certificate_type: string
           created_at: string
           created_by: string | null
+          contribution_summary: string | null
+          custom_title: string | null
+          download_count: number | null
+          email_error: string | null
+          email_sent_at: string | null
+          email_status: string | null
           event_id: string
           id: string
           issue_date: string
           organizer_name: string | null
           organizer_organization: string
+          participation_end: string | null
+          participation_start: string | null
+          pdf_url: string | null
           recipient_email: string | null
           recipient_name: string
           recipient_user_id: string | null
+          revision_of: string | null
+          role: string | null
+          skills: string[] | null
+          special_recognition: string | null
           signer_designation: string | null
           signer_name: string | null
           signer_signature_url: string | null
+          signer2_designation: string | null
+          signer2_name: string | null
+          signer2_signature_url: string | null
           status: string
+          team: string | null
+          template_key: string | null
           updated_at: string
           verification_token: string
         }
@@ -42,18 +60,36 @@ export type Database = {
           certificate_type?: string
           created_at?: string
           created_by?: string | null
+          contribution_summary?: string | null
+          custom_title?: string | null
+          download_count?: number | null
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           event_id: string
           id?: string
           issue_date?: string
           organizer_name?: string | null
           organizer_organization?: string
+          participation_end?: string | null
+          participation_start?: string | null
+          pdf_url?: string | null
           recipient_email?: string | null
           recipient_name: string
           recipient_user_id?: string | null
+          revision_of?: string | null
+          role?: string | null
+          skills?: string[] | null
+          special_recognition?: string | null
           signer_designation?: string | null
           signer_name?: string | null
           signer_signature_url?: string | null
+          signer2_designation?: string | null
+          signer2_name?: string | null
+          signer2_signature_url?: string | null
           status?: string
+          team?: string | null
+          template_key?: string | null
           updated_at?: string
           verification_token?: string
         }
@@ -63,18 +99,36 @@ export type Database = {
           certificate_type?: string
           created_at?: string
           created_by?: string | null
+          contribution_summary?: string | null
+          custom_title?: string | null
+          download_count?: number | null
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           event_id?: string
           id?: string
           issue_date?: string
           organizer_name?: string | null
           organizer_organization?: string
+          participation_end?: string | null
+          participation_start?: string | null
+          pdf_url?: string | null
           recipient_email?: string | null
           recipient_name?: string
           recipient_user_id?: string | null
+          revision_of?: string | null
+          role?: string | null
+          skills?: string[] | null
+          special_recognition?: string | null
           signer_designation?: string | null
           signer_name?: string | null
           signer_signature_url?: string | null
+          signer2_designation?: string | null
+          signer2_name?: string | null
+          signer2_signature_url?: string | null
           status?: string
+          team?: string | null
+          template_key?: string | null
           updated_at?: string
           verification_token?: string
         }
@@ -84,6 +138,152 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificate_templates: {
+        Row: {
+          accent_color: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          default_certificate_type: string | null
+          default_contribution_summary: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          theme_key: string
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          default_certificate_type?: string | null
+          default_contribution_summary?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          theme_key?: string
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          default_certificate_type?: string | null
+          default_contribution_summary?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          theme_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      certificate_email_logs: {
+        Row: {
+          attempt_count: number
+          certificate_id: string
+          created_at: string
+          error_details: string | null
+          id: string
+          last_attempt_at: string
+          provider_message_id: string | null
+          recipient_email: string
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          certificate_id: string
+          created_at?: string
+          error_details?: string | null
+          id?: string
+          last_attempt_at?: string
+          provider_message_id?: string | null
+          recipient_email: string
+          status?: string
+          subject?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          certificate_id?: string
+          created_at?: string
+          error_details?: string | null
+          id?: string
+          last_attempt_at?: string
+          provider_message_id?: string | null
+          recipient_email?: string
+          status?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_email_logs_certificate_id_fkey"
+            columns: ["certificate_id"]
+            isOneToOne: false
+            referencedRelation: "certificates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificate_audit_log: {
+        Row: {
+          action: string
+          admin_id: string
+          certificate_id: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_status: string | null
+          old_status: string | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          certificate_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string | null
+          old_status?: string | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          certificate_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string | null
+          old_status?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_audit_log_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_audit_log_certificate_id_fkey"
+            columns: ["certificate_id"]
+            isOneToOne: false
+            referencedRelation: "certificates"
             referencedColumns: ["id"]
           },
         ]
@@ -631,10 +831,20 @@ export type Database = {
           signer_name: string | null
           signer_designation: string | null
           signer_signature_url: string | null
+          role: string | null
+          team: string | null
+          contribution_summary: string | null
+          custom_title: string | null
+          special_recognition: string | null
+          template_key: string | null
           certificate_file_url: string | null
           issue_date: string | null
           verified_at: string
         }[]
+      }
+      increment_certificate_download: {
+        Args: { p_certificate_id: string }
+        Returns: null
       }
       claim_my_certificates: {
         Args: Record<PropertyKey, never>

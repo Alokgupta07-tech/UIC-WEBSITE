@@ -6,7 +6,8 @@
  */
 
 import { jsPDF } from "jspdf";
-import { buildVerificationUrl } from "@/services/certificates";
+import { buildVerificationUrl } from "@/lib/certificateUrls";
+import { CERTIFICATE_SIGNATORIES, loadCertificateSignatureDataUrl } from "@/lib/certificateSignatories";
 import type { CertificateThemeKey } from "@/components/certificates/PrintableCertificate";
 
 export interface CertificatePdfData {
@@ -232,8 +233,23 @@ export async function createCertificatePdf(data: CertificatePdfData): Promise<js
 
   // 9. Signatures (Dual Signatory Support)
   const sigY = 166;
-  const sig1X = 52;
-  const sig2X = width - 52;
+  const sig1X = 58;
+  const sig2X = width - 58;
+  const addSignature = async (key: "facultyCoordinator" | "president", centerX: number) => {
+    const image = await loadCertificateSignatureDataUrl(key);
+    const dimensions = doc.getImageProperties(image);
+    const scale = Math.min(52 / dimensions.width, 13 / dimensions.height);
+    const imageWidth = dimensions.width * scale;
+    const imageHeight = dimensions.height * scale;
+    doc.addImage(image, "PNG", centerX - imageWidth / 2, sigY - imageHeight - 2, imageWidth, imageHeight);
+  };
+
+  // Keep the supplied transparent PNGs as PNGs so their original handwriting
+  // and transparency are retained by jsPDF in every theme.
+  await Promise.all([
+    addSignature("facultyCoordinator", sig1X),
+    addSignature("president", sig2X),
+  ]);
 
   // Signatory 1
   doc.setDrawColor(148, 163, 184);
@@ -243,12 +259,12 @@ export async function createCertificatePdf(data: CertificatePdfData): Promise<js
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...palette.primary);
-  doc.text(data.signerName || "Faculty Coordinator", sig1X, sigY + 5, { align: "center" });
+  doc.text(CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName, sig1X, sigY + 5, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
-  doc.text(data.signerDesignation || "Unstop Igniters Club, SRM University–AP", sig1X, sigY + 9, { align: "center" });
+  doc.text(doc.splitTextToSize(CERTIFICATE_SIGNATORIES.facultyCoordinator.designation, 68), sig1X, sigY + 9, { align: "center", lineHeightFactor: 1.15 });
 
   // Signatory 2
   doc.setDrawColor(148, 163, 184);
@@ -258,12 +274,12 @@ export async function createCertificatePdf(data: CertificatePdfData): Promise<js
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...palette.primary);
-  doc.text(data.signer2Name || "President / Lead", sig2X, sigY + 5, { align: "center" });
+  doc.text(CERTIFICATE_SIGNATORIES.president.printedName, sig2X, sigY + 5, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
-  doc.text(data.signer2Designation || "Student Body, SRM University–AP", sig2X, sigY + 9, { align: "center" });
+  doc.text(doc.splitTextToSize(CERTIFICATE_SIGNATORIES.president.designation, 68), sig2X, sigY + 9, { align: "center", lineHeightFactor: 1.15 });
 
   // 10. Center Gold Seal
   const sealX = width / 2;

@@ -1,4 +1,4 @@
-import { Flame, PenLine } from "lucide-react";
+import { Flame } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
@@ -8,6 +8,7 @@ import {
   toDateTimeAttr,
 } from "@/lib/dates";
 import type { CertificateVerification } from "@/types";
+import { CERTIFICATE_SIGNATORIES } from "@/lib/certificateSignatories";
 
 const NOT_PROVIDED = "Not provided";
 
@@ -138,33 +139,21 @@ export function CertificateRecord({
 
         <Separator />
 
-        <Group title="Signature">
-          <Field label="Signed by" value={data.signerName} />
-          <Field label="Designation" value={data.signerDesignation} />
-          <div className="sm:col-span-2">
-            <dt className="text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground">
-              Signature
-            </dt>
-            <dd className="mt-1.5">
-              {data.signerSignatureUrl ? (
-                <img
-                  src={data.signerSignatureUrl}
-                  alt={
-                    data.signerName
-                      ? `Signature of ${data.signerName}`
-                      : "Authorised signature"
-                  }
-                  loading="lazy"
-                  className="h-14 w-auto max-w-[16rem] rounded border bg-background object-contain p-1"
-                />
-              ) : data.signerName ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
-                  <PenLine className="h-3 w-3" aria-hidden />
-                  Digitally signed &amp; verified
-                </span>
-              ) : (
-                <span className="text-sm text-muted-foreground">{NOT_PROVIDED}</span>
-              )}
+        <Group title="Authorized Signatories">
+          <div>
+            <dt className="text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground">Faculty Coordinator</dt>
+            <dd className="mt-1.5 space-y-1">
+              <img src={CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath} alt="Faculty Coordinator handwritten signature" loading="lazy" className="h-12 w-auto max-w-[16rem] object-contain" />
+              <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName}</p>
+              <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.facultyCoordinator.designation}</p>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground">President</dt>
+            <dd className="mt-1.5 space-y-1">
+              <img src={CERTIFICATE_SIGNATORIES.president.signaturePath} alt="Revanth Boina handwritten signature" loading="lazy" className="h-12 w-auto max-w-[16rem] object-contain" />
+              <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.president.printedName}</p>
+              <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.president.designation}</p>
             </dd>
           </div>
         </Group>
