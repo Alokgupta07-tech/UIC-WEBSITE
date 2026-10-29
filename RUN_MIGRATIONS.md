@@ -22,6 +22,17 @@
 
 ## 📋 Migration Order
 
+### Certificates (required for Admin → Certificates)
+
+Run these certificate migrations in order before issuing certificates:
+
+1. `supabase/migrations/20260913000000_certificates.sql` — creates the certificate table, RLS policies, and verification function.
+2. `supabase/migrations/20261028000000_certificate_management.sql` — adds the fields used by the current issuance form and management screens.
+
+If the API reports a missing certificate column after the second migration succeeds, refresh the PostgREST schema cache from Supabase **Project Settings → API**, or run `NOTIFY pgrst, 'reload schema';` as a database owner.
+
+The contest migrations below are separate and are only needed for contest features.
+
 Run these files in this exact order:
 
 ### 1️⃣ Contest Participants

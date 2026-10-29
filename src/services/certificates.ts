@@ -420,6 +420,25 @@ export type CertificateInput = {
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function certificateIssueError(error: { code?: string; message?: string; details?: string; hint?: string }) {
+  const code = error.code ?? "";
+  const messages: Record<string, string> = {
+    "23503": "The selected event or revision certificate no longer exists. Refresh the page and try again.",
+    "23505": "A certificate with this unique identifier already exists. Refresh the certificate list before retrying.",
+    "23514": "One or more certificate values are not allowed by the database. Check the selected values and try again.",
+    "42501": "Your account is not authorized to issue certificates. Sign in with an administrator account.",
+    "22P02": "An identifier or date has an invalid format. Check the form and try again.",
+    "PGRST204": "The certificate database is missing fields required by this form. An administrator must apply the certificate management migration.",
+    "PGRST205": "The certificates table is not available in the database. An administrator must apply the certificate migrations.",
+    "42P01": "The certificates table is missing. An administrator must apply the certificate migrations.",
+    "42703": "The certificate database schema is out of date. An administrator must apply the certificate management migration.",
+  };
+  const friendly = messages[code] ?? "Certificate issuance failed. Check your access and the certificate details, then try again.";
+  if (import.meta.env.DEV) console.error("Certificate issuance failed", { code: code || "unknown" });
+  return new Error(friendly);
+}
 
 export async function getAllCertificatesAdmin(eventId?: string): Promise<Certificate[]> {
   try {
@@ -446,6 +465,19 @@ export async function issueCertificate(
   input: CertificateInput,
   createdBy: string | null
 ): Promise<Certificate> {
+  if (!UUID_PATTERN.test(input.event_id.trim())) {
+    throw new Error("Select a valid event before issuing the certificate.");
+  }
+  if (!input.recipient_name.trim()) throw new Error("Enter the recipient's name.");
+  if (input.recipient_email?.trim() && !EMAIL_PATTERN.test(input.recipient_email.trim())) {
+    throw new Error("Enter a valid recipient email address.");
+  }
+  for (const date of [input.issue_date, input.participation_start, input.participation_end]) {
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error("Enter dates in YYYY-MM-DD format.");
+    }
+  }
+
   const insertPayload: Record<string, unknown> = {
     event_id: input.event_id,
     recipient_name: input.recipient_name.trim(),
@@ -480,7 +512,7 @@ export async function issueCertificate(
     .select("*")
     .single();
 
-  if (error) throw error;
+  if (error) throw certificateIssueError(error);
   const created = await mapSingleCertificate(data as unknown as CertificateRow);
 
   // Log to audit log if available
@@ -763,7 +795,7 @@ export async function updateCertificateEmailStatus(
   errorDetails?: string | null
 ): Promise<void> {
   const now = new Date().toISOString();
-  await supabase
+  const { error: updateError } = await supabase
     .from("certificates")
     .update({
       email_status: status,
@@ -771,6 +803,7 @@ export async function updateCertificateEmailStatus(
       email_error: errorDetails || null,
     })
     .eq("id", certificateId);
+  if (updateError) throw updateError;
 
   try {
     await supabase.from("certificate_email_logs").insert({
@@ -790,7 +823,7 @@ export async function updateCertificateEmailStatus(
 /**
  * Send or re-send certificate via Email.
  * Attempts Supabase Edge Function `send-certificate-email`.
- * If Edge Function is not yet deployed, gracefully performs client simulation with full audit & log persistence.
+ * Missing email infrastructure is a failure; never report simulated delivery as sent.
  */
 export async function sendCertificateEmail(
   certificate: Certificate
@@ -818,23 +851,18 @@ export async function sendCertificateEmail(
     });
 
     if (error) throw error;
+    if (data?.success !== true || !data?.messageId) {
+      throw new Error("The email provider did not confirm delivery.");
+    }
     await updateCertificateEmailStatus(certificate.id, certificate.recipientEmail, "sent");
     return { success: true, message: data?.message || `Certificate emailed to ${certificate.recipientEmail}` };
   } catch (err: unknown) {
-    // Graceful fallback: log sent status and record history
     const errorMsg = err instanceof Error ? err.message : "Edge function unavailable";
-    
-    // Check if it failed due to edge function not found (PGRST / HTTP 404)
-    if (errorMsg.includes("Failed to send") || errorMsg.includes("404") || errorMsg.includes("FunctionsFetchError")) {
-      // Mark as sent via logged simulation so admin workflow is not blocked
-      await updateCertificateEmailStatus(certificate.id, certificate.recipientEmail, "sent");
-      return {
-        success: true,
-        message: `Certificate queued and marked sent for ${certificate.recipientEmail} (Simulated delivery)`,
-      };
+    try {
+      await updateCertificateEmailStatus(certificate.id, certificate.recipientEmail, "failed", errorMsg);
+    } catch (statusError) {
+      if (import.meta.env.DEV) console.error("Could not save certificate email failure status", statusError);
     }
-
-    await updateCertificateEmailStatus(certificate.id, certificate.recipientEmail, "failed", errorMsg);
     throw new Error(`Email delivery failed: ${errorMsg}`);
   }
 }

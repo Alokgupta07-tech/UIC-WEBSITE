@@ -72,7 +72,7 @@ See `.env.example` for the full list.
 
 ## 🎓 Certificates & QR Verification
 
-The certificate system lives in `supabase/migrations/20260913000000_certificates.sql`. Run it in the Supabase SQL Editor (it is idempotent) before using the feature — it creates the `certificates` table, its Row Level Security policies, and the public `verify_certificate()` function.
+The certificate system requires both `supabase/migrations/20260913000000_certificates.sql` and `supabase/migrations/20261028000000_certificate_management.sql`, in that order. Run both in the Supabase SQL Editor before using the Admin → Certificates workflow. The second migration adds the role, template, second signatory, email status, and PDF metadata columns used by the current form. If PostgREST reports a missing certificate column (often `PGRST204`), apply the management migration and refresh the schema cache from Supabase **Project Settings → API** (or run `NOTIFY pgrst, 'reload schema';` as a database owner).
 
 How it works:
 

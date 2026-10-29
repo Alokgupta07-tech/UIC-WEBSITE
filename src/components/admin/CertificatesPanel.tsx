@@ -274,8 +274,9 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
         try {
           await sendCertificateEmail(cert);
           toast.success(`Issued #${cert.certificateNumber} and dispatched email!`);
-        } catch {
-          toast.warning(`Issued #${cert.certificateNumber}, but email failed to dispatch.`);
+        } catch (error) {
+          const reason = error instanceof Error ? ` ${error.message}` : "";
+          toast.warning(`Issued #${cert.certificateNumber}, but email failed. You can retry it from the certificate list.${reason}`);
         }
       } else {
         toast.success(`Issued #${cert.certificateNumber}`);

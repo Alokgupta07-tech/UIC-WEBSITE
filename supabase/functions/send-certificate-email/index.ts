@@ -10,6 +10,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function escapeHtml(value: string | null | undefined): string {
+  return (value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character] ?? character);
+}
+
 interface CertificateEmailPayload {
   certificateId: string;
   recipientEmail: string;
@@ -29,21 +35,104 @@ serve(async (req) => {
   }
 
   try {
-    const payload: CertificateEmailPayload = await req.json();
+    const suppliedPayload: CertificateEmailPayload = await req.json();
 
-    if (!payload.recipientEmail) {
-      return new Response(JSON.stringify({ error: "Missing recipientEmail" }), {
+    const authorization = req.headers.get("Authorization");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const publishableKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!authorization || !supabaseUrl || !publishableKey || !suppliedPayload.certificateId) {
+      return new Response(JSON.stringify({ error: "Authentication and a certificate ID are required." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const authHeaders = { apikey: publishableKey, Authorization: authorization, "Content-Type": "application/json" };
+    const adminResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/is_admin`, {
+      method: "POST", headers: authHeaders, body: "{}",
+    });
+    if (!adminResponse.ok || await adminResponse.json() !== true) {
+      return new Response(JSON.stringify({ error: "Only an authorized administrator can send certificate emails." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Load the record under the caller's JWT. This both enforces the existing
+    // admin RLS policy and prevents forged recipient/details in the request.
+    const certificateResponse = await fetch(
+      `${supabaseUrl}/rest/v1/certificates?id=eq.${encodeURIComponent(suppliedPayload.certificateId)}&select=id,status,recipient_email,recipient_name,certificate_number,verification_token,role,team,custom_title,event_id`,
+      { headers: authHeaders },
+    );
+    if (!certificateResponse.ok) throw new Error("Could not load the certificate for delivery.");
+    const certificates = await certificateResponse.json();
+    const record = certificates[0];
+    if (!record || record.status !== "issued") {
+      return new Response(JSON.stringify({ error: "The certificate does not exist or is not active." }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!record.recipient_email) {
+      return new Response(JSON.stringify({ error: "This certificate has no recipient email address." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const eventResponse = await fetch(
+      `${supabaseUrl}/rest/v1/events?id=eq.${encodeURIComponent(record.event_id)}&select=title`,
+      { headers: authHeaders },
+    );
+    if (!eventResponse.ok) throw new Error("Could not load the certificate event.");
+    const events = await eventResponse.json();
+    let siteOrigin: string;
+    try {
+      const providedUrl = new URL(suppliedPayload.verifyUrl);
+      const expectedOrigin = Deno.env.get("SITE_URL") ?? req.headers.get("origin");
+      if (!expectedOrigin || providedUrl.origin !== new URL(expectedOrigin).origin || !providedUrl.pathname.startsWith("/verify/certificate/")) {
+        throw new Error("URL mismatch");
+      }
+      siteOrigin = providedUrl.origin;
+    } catch {
+      return new Response(JSON.stringify({ error: "Certificate verification URL is not configured correctly." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const payload: CertificateEmailPayload = {
+      certificateId: record.id,
+      recipientEmail: record.recipient_email,
+      recipientName: record.recipient_name,
+      certificateNumber: record.certificate_number,
+      eventTitle: events[0]?.title ?? "UIC event",
+      verifyUrl: `${siteOrigin}/verify/certificate/${record.verification_token}`,
+      role: record.role,
+      team: record.team,
+      customTitle: record.custom_title,
+    };
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const senderEmail = Deno.env.get("SENDER_EMAIL") || "certificates@unstopignitersclub.com";
     const senderName = "Unstop Igniters Club — SRM AP";
 
-    const title = payload.customTitle || (payload.role ? `Certificate of Appreciation (${payload.role})` : "Official Certificate of Achievement");
-    const roleBadges = [payload.role, payload.team].filter(Boolean).join(" • ");
+    const title = escapeHtml(payload.customTitle || (payload.role ? `Certificate of Appreciation (${payload.role})` : "Official Certificate of Achievement"));
+    const recipientName = escapeHtml(payload.recipientName);
+    const eventTitle = escapeHtml(payload.eventTitle);
+    const certificateNumber = escapeHtml(payload.certificateNumber);
+    const roleBadges = [payload.role, payload.team].filter(Boolean).map((value) => escapeHtml(value)).join(" • ");
+    let verifyUrl: string;
+    try {
+      const parsedUrl = new URL(payload.verifyUrl);
+      if (parsedUrl.protocol !== "https:" && parsedUrl.hostname !== "localhost") throw new Error("invalid protocol");
+      verifyUrl = escapeHtml(parsedUrl.toString());
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid certificate verification URL" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const htmlBody = `
 <!DOCTYPE html>
@@ -72,10 +161,10 @@ serve(async (req) => {
           <tr>
             <td style="padding: 36px 30px 28px;">
               <p style="margin: 0 0 18px; font-size: 16px; line-height: 24px; color: #e2e8f0;">
-                Dear <strong>${payload.recipientName}</strong>,
+                Dear <strong>${recipientName}</strong>,
               </p>
               <p style="margin: 0 0 20px; font-size: 15px; line-height: 24px; color: #cbd5e1;">
-                On behalf of <strong>Unstop Igniters Club, SRM University–AP</strong>, we are proud and privileged to confer your official <strong>${title}</strong> for your exemplary contributions to <strong>${payload.eventTitle}</strong>.
+                On behalf of <strong>Unstop Igniters Club, SRM University–AP</strong>, we are proud and privileged to confer your official <strong>${title}</strong> for your exemplary contributions to <strong>${eventTitle}</strong>.
               </p>
 
               ${roleBadges ? `
@@ -89,7 +178,7 @@ serve(async (req) => {
                 <tr>
                   <td>
                     <p style="margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8;">Certificate Number</p>
-                    <p style="margin: 4px 0 0; font-family: monospace; font-size: 15px; font-weight: 700; color: #f59e0b;">${payload.certificateNumber}</p>
+                    <p style="margin: 4px 0 0; font-family: monospace; font-size: 15px; font-weight: 700; color: #f59e0b;">${certificateNumber}</p>
                   </td>
                   <td align="right">
                     <span style="display: inline-block; padding: 4px 10px; background-color: #065f46; color: #a7f3d0; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase;">VERIFIED</span>
@@ -101,7 +190,7 @@ serve(async (req) => {
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
                 <tr>
                   <td align="center">
-                    <a href="${payload.verifyUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">
+                    <a href="${verifyUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">
                       View & Download Official PDF Certificate →
                     </a>
                   </td>
@@ -159,13 +248,12 @@ serve(async (req) => {
       );
     }
 
-    // Fallback if no RESEND_API_KEY is configured yet
     return new Response(
       JSON.stringify({
-        success: true,
-        message: "Email formatted successfully (Configure RESEND_API_KEY in Supabase secrets for live dispatch)",
+        success: false,
+        error: "Email delivery is not configured. Set RESEND_API_KEY in Supabase secrets and retry.",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
