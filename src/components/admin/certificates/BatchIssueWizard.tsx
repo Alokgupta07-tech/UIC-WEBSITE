@@ -262,7 +262,9 @@ export function BatchIssueWizard({
       }
 
       const rolePreset = r.role ? findRolePreset(r.role) : undefined;
-      const themeKey = rolePreset?.recommendedTheme || "royal-sapphire";
+      const category = r.recipientCategory || (rolePreset ? getDefaultRecipientCategory(rolePreset.id) : "participant");
+      const isParticipant = category === "participant" || category === "winner";
+      const themeKey = isParticipant ? "participant-emerald" : "organizer-forest";
 
       let contribution = r.contributionSummary;
       if (!contribution && rolePreset) {

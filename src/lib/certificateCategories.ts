@@ -16,7 +16,17 @@ export const CERTIFICATE_CATEGORIES: ReadonlyArray<{ value: CertificateCategory;
 /** Stable, reviewed category mapping. Free-text role names are never inspected. */
 export function getCertificateFamily(category: CertificateCategory | null | undefined): "participant" | "organizer" | "recognition" | null {
   if (category === "participant" || category === "winner") return "participant";
-  if (category === "organizer" || category === "volunteer" || category === "team_member") return "organizer";
+  if (
+    category === "organizer" ||
+    category === "volunteer" ||
+    category === "team_member" ||
+    category === "faculty_coordinator" ||
+    category === "mentor" ||
+    category === "speaker" ||
+    category === "judge"
+  ) {
+    return "organizer";
+  }
   if (category) return "recognition";
   return null;
 }

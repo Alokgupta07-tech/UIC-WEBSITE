@@ -68,6 +68,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CertificateStatusBadge } from "@/components/dashboard/StatusBadge";
 import { CertificateQrPreview } from "@/components/admin/CertificateQrPreview";
 import { CertificatePreviewDialog } from "@/components/admin/certificates/CertificatePreviewDialog";
+import { CertificateDesignSelector } from "@/components/admin/certificates/CertificateDesignSelector";
 import { ReissueCertificateDialog } from "@/components/admin/certificates/ReissueCertificateDialog";
 import { CertificateAuditDialog } from "@/components/admin/certificates/CertificateAuditDialog";
 import { BatchIssueWizard } from "@/components/admin/certificates/BatchIssueWizard";
@@ -104,13 +105,13 @@ import type { Certificate, CertificateCategory, CertificateEmailStatus } from "@
 const INITIAL_FORM = {
   recipient_name: "",
   recipient_email: "",
-  recipient_category: "organizer" as CertificateCategory,
-  role_id: "lead-organizer",
-  role: "Lead Organizer / Convenor",
-  team: "Organizing & Leadership",
-  custom_title: "CERTIFICATE OF APPRECIATION",
-  certificate_type: "Leadership & Organization",
-  template_key: "amethyst-prestige",
+  recipient_category: "participant" as CertificateCategory,
+  role_id: "participant",
+  role: "Active Participant",
+  team: "Participants",
+  custom_title: "CERTIFICATE OF PARTICIPATION",
+  certificate_type: "Participation",
+  template_key: "participant-emerald",
   contribution_summary: "",
   organizer_organization: "Unstop Igniters Club, SRM AP",
   issue_date: "",
@@ -247,17 +248,65 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
       team: preset.team,
     });
 
+    const category = getDefaultRecipientCategory(preset.id) || form.recipient_category;
+    const isParticipant = category === "participant" || category === "winner";
+    const defaultTemplate = isParticipant ? "participant-emerald" : "organizer-forest";
+
     setForm((prev) => ({
       ...prev,
       role_id: preset.id,
-      recipient_category: getDefaultRecipientCategory(preset.id) || prev.recipient_category,
+      recipient_category: category,
       role: preset.name,
       team: preset.team,
       custom_title: preset.defaultTitle,
       certificate_type: preset.defaultCertificateType,
-      template_key: preset.recommendedTheme,
+      template_key: defaultTemplate,
       contribution_summary: blurb,
     }));
+  };
+
+  const handlePreviewDraft = (templateKey: string) => {
+    const draftCertificate: Certificate = {
+      id: "draft-preview",
+      certificateNumber: "UIC-DRAFT-PREVIEW",
+      verificationToken: "0123456789abcdef0123456789abcdef",
+      certificateType: form.certificate_type || "Certificate of Participation",
+      recipientCategory: form.recipient_category || "participant",
+      status: "issued",
+      issueDate: form.issue_date || new Date().toISOString().split("T")[0],
+      recipientName: form.recipient_name || "Recipient Name",
+      recipientEmail: form.recipient_email || null,
+      recipientUserId: null,
+      organizerName: "Unstop Igniters Club",
+      organizerOrganization: form.organizer_organization || "Unstop Igniters Club, SRM AP",
+      signerName: certificateSignatories.facultyCoordinator.printedName,
+      signerDesignation: certificateSignatories.facultyCoordinator.designation,
+      signerSignatureUrl: certificateSignatories.facultyCoordinator.signaturePath,
+      signer2Name: certificateSignatories.president.printedName,
+      signer2Designation: certificateSignatories.president.designation,
+      signer2SignatureUrl: certificateSignatories.president.signaturePath,
+      certificateFileUrl: null,
+      role: form.role || null,
+      team: form.team || null,
+      contributionSummary: form.contribution_summary || null,
+      skills: null,
+      customTitle: form.custom_title || null,
+      specialRecognition: null,
+      templateKey: templateKey || form.template_key,
+      emailStatus: "pending",
+      emailSentAt: null,
+      emailError: null,
+      downloadCount: 0,
+      lastDownloadedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      eventTitle: selectedEvent?.title || "UIC Event",
+      eventDate: selectedEvent?.startDate || new Date().toISOString(),
+      eventVenue: selectedEvent?.venue || "SRM University–AP",
+      eventIsOnline: selectedEvent?.isOnline || false,
+      eventCategory: selectedEvent?.category || null,
+    };
+    setPreviewTarget(draftCertificate);
   };
 
   // Single issue mutation
@@ -893,7 +942,21 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                 </div>
                 <div>
                   <Label htmlFor="single-category">Verified recipient category *</Label>
-                  <Select value={form.recipient_category} onValueChange={(value) => setForm((prev) => ({ ...prev, recipient_category: value as typeof prev.recipient_category }))}>
+                  <Select
+                    value={form.recipient_category}
+                    onValueChange={(value) => {
+                      const cat = value as typeof form.recipient_category;
+                      const isParticipant = cat === "participant" || cat === "winner";
+                      const defaultTemplate = isParticipant ? "participant-emerald" : "organizer-forest";
+                      const defaultTitle = cat === "winner" ? "CERTIFICATE OF ACHIEVEMENT" : isParticipant ? "CERTIFICATE OF PARTICIPATION" : "CERTIFICATE OF APPRECIATION";
+                      setForm((prev) => ({
+                        ...prev,
+                        recipient_category: cat,
+                        template_key: defaultTemplate,
+                        custom_title: defaultTitle,
+                      }));
+                    }}
+                  >
                     <SelectTrigger id="single-category"><SelectValue placeholder="Choose category" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="participant">Participant</SelectItem>
@@ -925,7 +988,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-4">
                   <div>
                     <Label htmlFor="single-role-select">Select Specific Role</Label>
                     <Select value={form.role_id} onValueChange={handleRoleSelect}>
@@ -949,23 +1012,14 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                     </Select>
                   </div>
 
-                  <div>
-                    <Label htmlFor="single-template-theme">Design Template Theme</Label>
-                    <Select
-                      value={form.template_key}
-                      onValueChange={(val) => setForm((prev) => ({ ...prev, template_key: val }))}
-                    >
-                      <SelectTrigger id="single-template-theme" className="w-full">
-                        <SelectValue placeholder="Theme" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cyber-emerald">Cyber Emerald (Hackathons & Tech)</SelectItem>
-                        <SelectItem value="royal-sapphire">Royal Sapphire (Championships & Grand Contests)</SelectItem>
-                        <SelectItem value="imperial-ruby">Imperial Ruby (Workshops & Creative)</SelectItem>
-                        <SelectItem value="amethyst-prestige">Amethyst Prestige (Leadership & Core Organizers)</SelectItem>
-                        <SelectItem value="grand-monarch">Grand Monarch (1st Place & High Honors)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {/* Certificate Design Selection Section */}
+                  <div className="pt-2">
+                    <CertificateDesignSelector
+                      selectedTemplate={form.template_key}
+                      recipientCategory={form.recipient_category}
+                      onSelectTemplate={(templateKey) => setForm((prev) => ({ ...prev, template_key: templateKey }))}
+                      onPreviewTemplate={handlePreviewDraft}
+                    />
                   </div>
                 </div>
 

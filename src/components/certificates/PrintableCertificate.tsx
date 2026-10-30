@@ -6,6 +6,10 @@ import { downloadCertificatePdf, getCertificatePdfBlob } from "@/lib/certificate
 import type { CertificateVerification } from "@/types";
 
 export type CertificateThemeKey =
+  | "participant-classic"
+  | "participant-emerald"
+  | "organizer-forest"
+  | "organizer-prestige"
   | "cyber-emerald"
   | "royal-sapphire"
   | "imperial-ruby"

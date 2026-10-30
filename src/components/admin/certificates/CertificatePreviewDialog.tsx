@@ -43,7 +43,17 @@ export function CertificatePreviewDialog({
     specialRecognition: certificate.specialRecognition,
     templateKey: certificate.templateKey,
   };
-  const themeKeys: CertificateThemeKey[] = ["cyber-emerald", "royal-sapphire", "imperial-ruby", "amethyst-prestige", "grand-monarch"];
+  const themeKeys: CertificateThemeKey[] = [
+    "participant-classic",
+    "participant-emerald",
+    "organizer-forest",
+    "organizer-prestige",
+    "cyber-emerald",
+    "royal-sapphire",
+    "imperial-ruby",
+    "amethyst-prestige",
+    "grand-monarch",
+  ];
   const initialTheme = themeKeys.find((key) => key === certificate.templateKey);
 
   return (

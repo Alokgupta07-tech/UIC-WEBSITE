@@ -276,9 +276,9 @@ export function BulkCertificateDistribution({ certificates, onComplete }: BulkCe
                             ? "Certificate is not active"
                             : !certificate.recipientCategory
                               ? "Recipient category needs admin review"
-                            : certificate.emailStatus === "sent"
-                              ? "Already accepted; excluded to prevent duplicate email"
-                              : "Ready to send";
+                              : certificate.emailStatus === "sent"
+                                ? "Already accepted; excluded to prevent duplicate email"
+                                : "Ready to send";
                         return (
                           <div key={certificate.id} className="flex flex-wrap items-center justify-between gap-2 border-b p-3 last:border-b-0">
                             <div className="min-w-0">
