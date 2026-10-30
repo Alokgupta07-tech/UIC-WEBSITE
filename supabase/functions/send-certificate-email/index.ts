@@ -7,7 +7,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-api-version",
+  "Access-Control-Max-Age": "86400",
 };
 
 function escapeHtml(value: string | null | undefined): string {
@@ -23,6 +25,7 @@ interface CertificateEmailPayload {
   eventTitle: string;
   certificateNumber: string;
   verifyUrl: string;
+  recipientCategory?: string | null;
   role?: string | null;
   team?: string | null;
   customTitle?: string | null;
@@ -47,6 +50,7 @@ serve(async (req) => {
   let attemptNumber = 1;
   let deliveryEmail = "";
   let deliverySubject = "";
+  let attachmentSha256: string | null = null;
 
   try {
     if (!authHeaders || !supabaseUrl || !suppliedPayload.certificateId) {
@@ -69,7 +73,7 @@ serve(async (req) => {
     // Load the record under the caller's JWT. This both enforces the existing
     // admin RLS policy and prevents forged recipient/details in the request.
     const certificateResponse = await fetch(
-      `${supabaseUrl}/rest/v1/certificates?id=eq.${encodeURIComponent(suppliedPayload.certificateId)}&select=id,status,recipient_email,recipient_name,certificate_number,verification_token,role,team,custom_title,event_id,email_status`,
+      `${supabaseUrl}/rest/v1/certificates?id=eq.${encodeURIComponent(suppliedPayload.certificateId)}&select=id,status,recipient_email,recipient_name,recipient_category,certificate_number,verification_token,role,team,custom_title,event_id,email_status`,
       { headers: authHeaders },
     );
     if (!certificateResponse.ok) throw new Error("Could not load the certificate for delivery.");
@@ -112,6 +116,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const digest = await crypto.subtle.digest("SHA-256", decodedAttachment);
+    attachmentSha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 
     const eventResponse = await fetch(
       `${supabaseUrl}/rest/v1/events?id=eq.${encodeURIComponent(record.event_id)}&select=title`,
@@ -141,6 +147,7 @@ serve(async (req) => {
       certificateNumber: record.certificate_number,
       eventTitle: events[0]?.title ?? "UIC event",
       verifyUrl: `${siteOrigin}/verify/certificate/${record.verification_token}`,
+      recipientCategory: record.recipient_category,
       role: record.role,
       team: record.team,
       customTitle: record.custom_title,
@@ -172,7 +179,12 @@ serve(async (req) => {
       });
     }
 
-    const title = escapeHtml(payload.customTitle || (payload.role ? `Certificate of Appreciation (${payload.role})` : "Official Certificate of Achievement"));
+    const defaultTitle = payload.recipientCategory === "participant"
+      ? "Certificate of Participation"
+      : payload.recipientCategory === "winner"
+        ? "Certificate of Achievement"
+        : "Certificate of Appreciation";
+    const title = escapeHtml(payload.customTitle || defaultTitle);
     const recipientName = escapeHtml(payload.recipientName);
     const eventTitle = escapeHtml(payload.eventTitle);
     const certificateNumber = escapeHtml(payload.certificateNumber);
@@ -235,7 +247,7 @@ serve(async (req) => {
             <td align="center" style="padding: 36px 30px 24px; background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%); border-bottom: 2px solid #d97706;">
               <p style="margin: 0 0 6px; font-size: 11px; font-weight: 800; letter-spacing: 3px; color: #f59e0b; text-transform: uppercase;">SRM University–AP</p>
               <h1 style="margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 1px; color: #ffffff;">UNSTOP IGNITERS CLUB</h1>
-              <p style="margin: 6px 0 0; font-size: 12px; color: #cbd5e1;">Official Digital Credential & Verification Registry</p>
+              <p style="margin: 6px 0 0; font-size: 12px; color: #cbd5e1;">Official Digital Credential &amp; Verification Registry</p>
             </td>
           </tr>
 
@@ -245,8 +257,17 @@ serve(async (req) => {
               <p style="margin: 0 0 18px; font-size: 16px; line-height: 24px; color: #e2e8f0;">
                 Dear <strong>${recipientName}</strong>,
               </p>
+
+              <p style="margin: 0 0 20px; font-size: 17px; font-weight: 700; line-height: 24px; color: #f59e0b;">
+                Congratulations!
+              </p>
+
               <p style="margin: 0 0 20px; font-size: 15px; line-height: 24px; color: #cbd5e1;">
-                On behalf of <strong>Unstop Igniters Club, SRM University–AP</strong>, we are proud and privileged to confer your official <strong>${title}</strong> for your exemplary contributions to <strong>${eventTitle}</strong>.
+                Thank you for being part of <strong>${eventTitle}</strong>, organized by <strong>Unstop Igniters Club, SRM University–AP</strong>.
+              </p>
+
+              <p style="margin: 0 0 20px; font-size: 15px; line-height: 24px; color: #cbd5e1;">
+                We are pleased to share your <strong>${title}</strong> in recognition of your participation and contribution.
               </p>
 
               ${roleBadges ? `
@@ -254,6 +275,10 @@ serve(async (req) => {
                 <p style="margin: 0; font-size: 13px; font-weight: 700; color: #93c5fd; text-transform: uppercase; letter-spacing: 1px;">Recognized Capacity</p>
                 <p style="margin: 4px 0 0; font-size: 15px; font-weight: 600; color: #ffffff;">${roleBadges}</p>
               </div>` : ""}
+
+              <p style="margin: 0 0 24px; font-size: 15px; line-height: 24px; color: #cbd5e1;">
+                Your certificate is attached to this email. You can also access it through the secure certificate verification link below.
+              </p>
 
               <!-- Credential Box -->
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0 0 28px; background-color: #1e293b; border: 1px dashed #475569; border-radius: 8px; padding: 16px 20px;">
@@ -273,14 +298,21 @@ serve(async (req) => {
                 <tr>
                   <td align="center">
                     <a href="${verifyUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">
-                      View & Download Official PDF Certificate →
+                      View &amp; Verify Certificate →
                     </a>
                   </td>
                 </tr>
               </table>
 
-              <p style="margin: 0; font-size: 12px; line-height: 18px; color: #94a3b8; text-align: center;">
-                You can also share this permanent verification link on LinkedIn or your portfolio.
+              <p style="margin: 0 0 24px; font-size: 14px; line-height: 22px; color: #94a3b8;">
+                Thank you for being part of the UIC community. We appreciate your contribution and look forward to seeing you at our future events.
+              </p>
+
+              <p style="margin: 0; font-size: 14px; line-height: 22px; color: #cbd5e1;">
+                Warm regards,<br>
+                <strong>Unstop Igniters Club</strong><br>
+                <span style="color: #94a3b8;">SRM University–AP</span><br>
+                <span style="color: #94a3b8;">Official email: club.igniter@srmap.edu.in</span>
               </p>
             </td>
           </tr>
@@ -289,7 +321,7 @@ serve(async (req) => {
           <tr>
             <td style="padding: 24px 30px; background-color: #0b1120; border-top: 1px solid #1e293b; text-align: center;">
               <p style="margin: 0 0 6px; font-size: 12px; color: #64748b;">
-                Unstop Igniters Club • SRM University–AP, Andhra Pradesh
+                Unstop Igniters Club &bull; SRM University–AP, Andhra Pradesh
               </p>
               <p style="margin: 0; font-size: 11px; color: #475569;">
                 This certificate is listed in the Unstop Igniters Club verification registry.
@@ -305,7 +337,7 @@ serve(async (req) => {
 
     {
       const subject = deliverySubject;
-      const plainText = `Dear ${payload.recipientName},\n\nCongratulations!\n\nThank you for being part of ${payload.eventTitle}, organized by Unstop Igniters Club, SRM University–AP. We are pleased to share your ${payload.customTitle || payload.role || "certificate"}. Your signed certificate PDF is attached. You can also verify it at ${payload.verifyUrl}.\n\nWarm regards,\nUnstop Igniters Club\nSRM University–AP\nOfficial email: club.igniter@srmap.edu.in`;
+      const plainText = `Dear ${payload.recipientName},\n\nCongratulations!\n\nThank you for being part of ${payload.eventTitle}, organized by Unstop Igniters Club, SRM University–AP.\n\nWe are pleased to share your ${payload.customTitle || defaultTitle} in recognition of your participation and contribution.\n\nYour certificate is attached to this email. You can also access it through the secure certificate verification or download link, where available.\n\nVerify: ${payload.verifyUrl}\nCertificate No: ${payload.certificateNumber}\n\nThank you for being part of the UIC community. We appreciate your contribution and look forward to seeing you at our future events.\n\nWarm regards,\n\nUnstop Igniters Club\nSRM University–AP\nOfficial email: club.igniter@srmap.edu.in`;
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -351,6 +383,7 @@ serve(async (req) => {
             recipient_email: deliveryEmail,
             subject: deliverySubject,
             provider_message_id: resData.id,
+            attachment_sha256: attachmentSha256,
             status: "sent",
             attempt_count: attemptNumber,
             last_attempt_at: acceptedAt,
@@ -387,6 +420,7 @@ serve(async (req) => {
             attempt_count: attemptNumber,
             last_attempt_at: failedAt,
             error_details: message.slice(0, 500),
+            attachment_sha256: attachmentSha256,
           }),
         }).catch(() => undefined);
       }

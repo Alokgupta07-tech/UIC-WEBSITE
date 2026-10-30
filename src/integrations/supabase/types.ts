@@ -37,6 +37,7 @@ export type Database = {
           pdf_url: string | null
           recipient_email: string | null
           recipient_name: string
+          recipient_category: string | null
           recipient_user_id: string | null
           revision_of: string | null
           role: string | null
@@ -76,6 +77,7 @@ export type Database = {
           pdf_url?: string | null
           recipient_email?: string | null
           recipient_name: string
+          recipient_category?: string | null
           recipient_user_id?: string | null
           revision_of?: string | null
           role?: string | null
@@ -115,6 +117,7 @@ export type Database = {
           pdf_url?: string | null
           recipient_email?: string | null
           recipient_name?: string
+          recipient_category?: string | null
           recipient_user_id?: string | null
           revision_of?: string | null
           role?: string | null
@@ -141,6 +144,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      site_settings: {
+        Row: {
+          key: string
+          label: string | null
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          key: string
+          label?: string | null
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          key?: string
+          label?: string | null
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
       }
       certificate_templates: {
         Row: {
@@ -192,6 +216,7 @@ export type Database = {
       }
       certificate_email_logs: {
         Row: {
+          attachment_sha256: string | null
           attempt_count: number
           certificate_id: string
           created_at: string
@@ -204,6 +229,7 @@ export type Database = {
           subject: string | null
         }
         Insert: {
+          attachment_sha256?: string | null
           attempt_count?: number
           certificate_id: string
           created_at?: string
@@ -216,6 +242,7 @@ export type Database = {
           subject?: string | null
         }
         Update: {
+          attachment_sha256?: string | null
           attempt_count?: number
           certificate_id?: string
           created_at?: string
@@ -819,6 +846,7 @@ export type Database = {
           verification_status: string
           certificate_number: string | null
           certificate_type: string | null
+          recipient_category: string | null
           recipient_name: string | null
           event_title: string | null
           event_description: string | null
@@ -831,6 +859,9 @@ export type Database = {
           signer_name: string | null
           signer_designation: string | null
           signer_signature_url: string | null
+          signer2_name: string | null
+          signer2_designation: string | null
+          signer2_signature_url: string | null
           role: string | null
           team: string | null
           contribution_summary: string | null

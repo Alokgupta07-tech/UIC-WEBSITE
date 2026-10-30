@@ -3,10 +3,9 @@
 ## ⚡ Fast Track: Run SQL Migrations
 
 ### Important Rules
-1. ✅ Copy **SQL statements only** (CREATE TABLE, CREATE INDEX, etc.)
-2. ❌ **DO NOT** copy comment lines starting with `--` or `#`
-3. ❌ **DO NOT** copy file paths or instructions
-4. ✅ Run migrations in the exact order listed below
+1. ✅ Copy the complete contents of each `.sql` migration file. SQL comments beginning with `--` are safe to include.
+2. ❌ Do not paste file paths, prose instructions, or terminal commands into SQL Editor.
+3. ✅ Run migrations in the exact order listed below.
 
 ---
 
@@ -16,7 +15,7 @@
 2. Select your project
 3. Click **SQL Editor** in left sidebar
 4. Click **New Query**
-5. Paste SQL and click **Run**
+5. Open the required `.sql` file in your project, copy its complete contents, paste into SQL Editor, and click **Run**
 
 ---
 
@@ -28,6 +27,22 @@ Run these certificate migrations in order before issuing certificates:
 
 1. `supabase/migrations/20260913000000_certificates.sql` — creates the certificate table, RLS policies, and verification function.
 2. `supabase/migrations/20261028000000_certificate_management.sql` — adds the fields used by the current issuance form and management screens.
+3. `supabase/migrations/20261029000000_certificate_download_counter.sql` — adds the protected download counter.
+4. `supabase/migrations/20261030000000_certificate_recipient_category.sql` — adds admin-reviewed recipient categories and exposes them through public certificate verification.
+
+Legacy certificates keep a NULL category and are marked **Needs review** in the admin registry. Review and assign each category before regenerating or redistributing those certificates. New issuance requires an explicit category.
+
+### Deploy the email function (PowerShell terminal, after the migration)
+
+The migration file contains SQL. Run that SQL in the Supabase Dashboard's **SQL Editor** first. The commands below are PowerShell terminal commands; do not paste them into SQL Editor. From the project folder, use the locally installed CLI so a global `supabase` command is not required:
+
+```powershell
+npx supabase login
+npx supabase link --project-ref oftnltsurucztmhldulq
+npx supabase functions deploy send-certificate-email
+```
+
+Before deploying, add `RESEND_API_KEY` and `SENDER_EMAIL` in the Supabase Dashboard under **Project Settings → Edge Functions → Secrets**. Use the actual verified sender address from Resend. Keep the API key out of source files and Git. The function returns a configuration error until both secrets are set. A successful function deployment alone does not send mail until Resend has verified the sender domain/address.
 
 If the API reports a missing certificate column after the second migration succeeds, refresh the PostgREST schema cache from Supabase **Project Settings → API**, or run `NOTIFY pgrst, 'reload schema';` as a database owner.
 

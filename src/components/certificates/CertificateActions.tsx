@@ -76,18 +76,25 @@ export function CertificateActions({
         eventVenue: data.eventVenue,
         eventIsOnline: data.eventIsOnline,
         certificateType: data.certificateType,
+        recipientCategory: data.recipientCategory,
         customTitle: data.customTitle,
         role: data.role,
         team: data.team,
         contributionSummary: data.contributionSummary,
         specialRecognition: data.specialRecognition,
         organizerOrganization: data.organizerOrganization,
+        signerName: data.signerName,
+        signerDesignation: data.signerDesignation,
+        signerSignatureUrl: data.signerSignatureUrl,
+        signer2Name: data.signer2Name,
+        signer2Designation: data.signer2Designation,
+        signer2SignatureUrl: data.signer2SignatureUrl,
         issueDate: data.issueDate,
         themeKey: data.templateKey,
       });
       toast.success("Signed certificate PDF downloaded.");
-    } catch {
-      toast.error("Could not generate the signed PDF. Check that the official signature assets are available.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not generate the signed PDF.");
     } finally {
       setIsDownloading(false);
     }

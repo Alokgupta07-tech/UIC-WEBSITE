@@ -83,23 +83,28 @@ import {
   setCertificateStatus,
   sendCertificateEmail,
   getCertificateAuditLogs,
+  updateCertificate,
   type CertificateInput,
 } from "@/services/certificates";
 import { downloadCertificatePdf } from "@/lib/certificatePdf";
-import { CERTIFICATE_SIGNATORIES } from "@/lib/certificateSignatories";
+import { DEFAULT_CERTIFICATE_SIGNATORIES } from "@/lib/certificateSignatories";
+import { getCertificateSignatoryConfiguration } from "@/services/settings";
 import {
   CERTIFICATE_TEAMS,
   ALL_ROLES,
   findRolePreset,
+  getDefaultRecipientCategory,
   renderContributionBlurb,
 } from "@/lib/certificateRoles";
 import { formatEventDate } from "@/lib/dates";
 import { downloadQrSvg } from "@/lib/qr";
-import type { Certificate, CertificateEmailStatus } from "@/types";
+import { CERTIFICATE_CATEGORIES, getCertificateCategoryLabel } from "@/lib/certificateCategories";
+import type { Certificate, CertificateCategory, CertificateEmailStatus } from "@/types";
 
 const INITIAL_FORM = {
   recipient_name: "",
   recipient_email: "",
+  recipient_category: "organizer" as CertificateCategory,
   role_id: "lead-organizer",
   role: "Lead Organizer / Convenor",
   team: "Organizing & Leadership",
@@ -154,6 +159,10 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
     queryKey: ["events-admin"],
     queryFn: getAllEventsAdmin,
   });
+  const { data: certificateSignatories = DEFAULT_CERTIFICATE_SIGNATORIES } = useQuery({
+    queryKey: ["certificate-signatories"],
+    queryFn: getCertificateSignatoryConfiguration,
+  });
 
   const {
     data: certificates,
@@ -180,6 +189,16 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
     void queryClient.invalidateQueries({ queryKey: ["certificates-admin"] });
     void queryClient.invalidateQueries({ queryKey: ["all-certificate-audit-logs"] });
   };
+
+  const categoryMutation = useMutation({
+    mutationFn: ({ id, category }: { id: string; category: CertificateCategory }) =>
+      updateCertificate(id, { recipient_category: category }),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Certificate category saved.");
+    },
+    onError: (error: unknown) => toast.error(error instanceof Error ? error.message : "Could not save certificate category."),
+  });
 
   // Filtered certificates
   const filteredCertificates = useMemo(() => {
@@ -231,6 +250,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
     setForm((prev) => ({
       ...prev,
       role_id: preset.id,
+      recipient_category: getDefaultRecipientCategory(preset.id) || prev.recipient_category,
       role: preset.name,
       team: preset.team,
       custom_title: preset.defaultTitle,
@@ -251,6 +271,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
           event_id: eventId,
           recipient_name: form.recipient_name,
           recipient_email: form.recipient_email || null,
+          recipient_category: form.recipient_category,
           role: form.role,
           team: form.team,
           custom_title: form.custom_title,
@@ -583,6 +604,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                         <TableHead>Certificate ID</TableHead>
                         <TableHead>Recipient</TableHead>
                         <TableHead>Role & Team</TableHead>
+                        <TableHead>Category</TableHead>
                         <TableHead>Event</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Email</TableHead>
@@ -620,6 +642,22 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                                 </span>
                               )}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={cert.recipientCategory || "needs-review"}
+                              onValueChange={(value) => categoryMutation.mutate({ id: cert.id, category: value as CertificateCategory })}
+                            >
+                              <SelectTrigger className={`h-7 w-[145px] text-[10px] ${!cert.recipientCategory ? "border-destructive text-destructive" : ""}`} aria-label={`Recipient category for ${cert.recipientName}`}>
+                                <SelectValue placeholder={getCertificateCategoryLabel(cert.recipientCategory)} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {!cert.recipientCategory && <SelectItem value="needs-review" disabled>Needs review</SelectItem>}
+                                {CERTIFICATE_CATEGORIES.map((category) => (
+                                  <SelectItem key={category.value} value={category.value}>{category.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground max-w-[140px] truncate">
                             {cert.eventTitle || "—"}
@@ -670,6 +708,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                                       eventVenue: cert.eventVenue,
                                       eventIsOnline: cert.eventIsOnline,
                                       certificateType: cert.certificateType,
+                                      recipientCategory: cert.recipientCategory,
                                       customTitle: cert.customTitle,
                                       role: cert.role,
                                       team: cert.team,
@@ -678,8 +717,10 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                                       organizerOrganization: cert.organizerOrganization,
                                       signerName: cert.signerName,
                                       signerDesignation: cert.signerDesignation,
+                                      signerSignatureUrl: cert.signerSignatureUrl,
                                       signer2Name: cert.signer2Name,
                                       signer2Designation: cert.signer2Designation,
+                                      signer2SignatureUrl: cert.signer2SignatureUrl,
                                       issueDate: cert.issueDate,
                                       themeKey: cert.templateKey,
                                     });
@@ -850,6 +891,24 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                     placeholder="e.g. aryan@srmap.edu.in"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="single-category">Verified recipient category *</Label>
+                  <Select value={form.recipient_category} onValueChange={(value) => setForm((prev) => ({ ...prev, recipient_category: value as typeof prev.recipient_category }))}>
+                    <SelectTrigger id="single-category"><SelectValue placeholder="Choose category" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="participant">Participant</SelectItem>
+                      <SelectItem value="winner">Winner</SelectItem>
+                      <SelectItem value="organizer">Organizer</SelectItem>
+                      <SelectItem value="volunteer">Volunteer</SelectItem>
+                      <SelectItem value="team_member">Team member</SelectItem>
+                      <SelectItem value="faculty_coordinator">Faculty coordinator</SelectItem>
+                      <SelectItem value="mentor">Mentor</SelectItem>
+                      <SelectItem value="speaker">Speaker</SelectItem>
+                      <SelectItem value="judge">Judge</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Role & Team Selector */}
@@ -947,17 +1006,17 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
               {/* Signatories */}
               <div className="grid gap-4 md:grid-cols-2 pt-2 border-t">
                 <div className="space-y-3">
-                  <img src={CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath} alt="Faculty Coordinator signature" className="h-10 w-36 object-contain" />
+                  <img src={certificateSignatories.facultyCoordinator.signaturePath} alt="Faculty Coordinator signature" className="h-10 w-36 object-contain" />
                   <p className="text-xs font-bold uppercase text-primary tracking-wider">Faculty Coordinator</p>
-                  <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName}</p>
-                  <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.facultyCoordinator.designation}</p>
+                  <p className="text-sm font-semibold">{certificateSignatories.facultyCoordinator.printedName}</p>
+                  <p className="text-xs text-muted-foreground">{certificateSignatories.facultyCoordinator.designation}</p>
                 </div>
 
                 <div className="space-y-3">
-                  <img src={CERTIFICATE_SIGNATORIES.president.signaturePath} alt="President Revanth Boina signature" className="h-10 w-36 object-contain" />
+                  <img src={certificateSignatories.president.signaturePath} alt="President signature" className="h-10 w-36 object-contain" />
                   <p className="text-xs font-bold uppercase text-primary tracking-wider">President</p>
-                  <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.president.printedName}</p>
-                  <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.president.designation}</p>
+                  <p className="text-sm font-semibold">{certificateSignatories.president.printedName}</p>
+                  <p className="text-xs text-muted-foreground">{certificateSignatories.president.designation}</p>
                 </div>
               </div>
 

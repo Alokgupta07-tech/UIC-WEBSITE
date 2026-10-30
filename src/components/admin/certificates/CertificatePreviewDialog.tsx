@@ -17,6 +17,7 @@ export function CertificatePreviewDialog({
     verdict: "verified" as const,
     certificateNumber: certificate.certificateNumber,
     certificateType: certificate.certificateType,
+    recipientCategory: certificate.recipientCategory,
     recipientName: certificate.recipientName,
     eventTitle: certificate.eventTitle,
     eventDescription: null,

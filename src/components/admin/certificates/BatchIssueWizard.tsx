@@ -52,10 +52,12 @@ import {
   CERTIFICATE_TEAMS,
   ALL_ROLES,
   findRolePreset,
+  getDefaultRecipientCategory,
   renderContributionBlurb,
 } from "@/lib/certificateRoles";
 import type { Certificate } from "@/types";
-import { CERTIFICATE_SIGNATORIES } from "@/lib/certificateSignatories";
+import { DEFAULT_CERTIFICATE_SIGNATORIES } from "@/lib/certificateSignatories";
+import { getCertificateSignatoryConfiguration } from "@/services/settings";
 
 interface BatchIssueWizardProps {
   createdBy: string | null;
@@ -69,6 +71,10 @@ export function BatchIssueWizard({
   onFinished,
 }: BatchIssueWizardProps) {
   const queryClient = useQueryClient();
+  const { data: certificateSignatories = DEFAULT_CERTIFICATE_SIGNATORIES } = useQuery({
+    queryKey: ["certificate-signatories"],
+    queryFn: getCertificateSignatoryConfiguration,
+  });
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [eventId, setEventId] = useState(initialEventId);
 
@@ -140,6 +146,7 @@ export function BatchIssueWizard({
         role: defaultRolePreset?.name || "Active Participant",
         team: defaultRolePreset?.team || "Participants",
         certificateType: defaultRolePreset?.defaultCertificateType || "Certificate of Participation",
+        recipientCategory: defaultRolePreset ? getDefaultRecipientCategory(defaultRolePreset.id) : "participant",
       }));
 
       setRecipients(mapped);
@@ -169,6 +176,7 @@ export function BatchIssueWizard({
         role: r.role || defaultRolePreset?.name || "Participant",
         team: r.team || defaultRolePreset?.team || "Participants",
         certificateType: r.certificateType || defaultRolePreset?.defaultCertificateType || "Certificate of Participation",
+        recipientCategory: r.recipientCategory || (defaultRolePreset ? getDefaultRecipientCategory(defaultRolePreset.id) : null),
       }));
 
       setRecipients(enriched);
@@ -191,7 +199,7 @@ export function BatchIssueWizard({
   };
 
   const downloadSampleCsv = () => {
-    const sample = `Name,Email,Role,Team,ContributionSummary\n"John Doe","john.doe@example.com","Technical Lead","Technical Team","Architected contest infrastructure and judge dashboards."\n"Jane Smith","jane.smith@example.com","Event Coordinator","Organizing & Leadership","Orchestrated end-to-end event operations and logistics."\n"Alex Kumar","alex@example.com","Student Volunteer","Organizing & Leadership","Provided active on-ground support and participant coordination."\n`;
+    const sample = `Name,Email,Role,Team,Category,ContributionSummary\n"John Doe","john.doe@example.com","Technical Lead","Technical Team","organizer","Supported the technical delivery of the event."\n"Jane Smith","jane.smith@example.com","Event Coordinator","Organizing & Leadership","organizer","Coordinated event logistics."\n"Alex Kumar","alex@example.com","Active Participant","Participants","participant","Participated in the event."\n`;
     const blob = new Blob([sample], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -211,6 +219,7 @@ export function BatchIssueWizard({
         role: preset.name,
         team: preset.team,
         certificateType: preset.defaultCertificateType,
+        recipientCategory: getDefaultRecipientCategory(preset.id),
       }))
     );
     toast.success(`Assigned "${preset.name}" to all ${recipients.length} recipients.`);
@@ -229,6 +238,10 @@ export function BatchIssueWizard({
     }
     if (recipients.length === 0) {
       toast.error("No recipients to issue certificates to.");
+      return;
+    }
+    if (recipients.some((recipient) => !recipient.recipientCategory)) {
+      toast.error("Review and select a verified category for every recipient before issuing.");
       return;
     }
 
@@ -268,6 +281,7 @@ export function BatchIssueWizard({
             recipient_name: r.name,
             recipient_email: email,
             certificate_type: r.certificateType || "Certificate of Appreciation",
+            recipient_category: r.recipientCategory,
             role: r.role || null,
             team: r.team || null,
             contribution_summary: contribution || null,
@@ -376,14 +390,14 @@ export function BatchIssueWizard({
 
             <div className="grid gap-4 md:grid-cols-2 pt-2 border-t">
               <div className="rounded-lg border p-3">
-                <img src={CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath} alt="Faculty Coordinator signature preview" className="h-12 w-40 object-contain" />
-                <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName}</p>
-                <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.facultyCoordinator.designation}</p>
+                <img src={certificateSignatories.facultyCoordinator.signaturePath} alt="Faculty Coordinator signature preview" className="h-12 w-40 object-contain" />
+                <p className="text-sm font-semibold">{certificateSignatories.facultyCoordinator.printedName}</p>
+                <p className="text-xs text-muted-foreground">{certificateSignatories.facultyCoordinator.designation}</p>
               </div>
               <div className="rounded-lg border p-3">
-                <img src={CERTIFICATE_SIGNATORIES.president.signaturePath} alt="President Revanth Boina signature preview" className="h-12 w-40 object-contain" />
-                <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.president.printedName}</p>
-                <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.president.designation}</p>
+                <img src={certificateSignatories.president.signaturePath} alt="President signature preview" className="h-12 w-40 object-contain" />
+                <p className="text-sm font-semibold">{certificateSignatories.president.printedName}</p>
+                <p className="text-xs text-muted-foreground">{certificateSignatories.president.designation}</p>
               </div>
             </div>
 
@@ -559,6 +573,7 @@ export function BatchIssueWizard({
                     <TableHead>Recipient Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Team</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
@@ -597,6 +612,7 @@ export function BatchIssueWizard({
                                         role: p.name,
                                         team: p.team,
                                         certificateType: p.defaultCertificateType,
+                                        recipientCategory: getDefaultRecipientCategory(p.id),
                                       }
                                     : item
                                 )
@@ -612,6 +628,23 @@ export function BatchIssueWizard({
                                   {role.name}
                                 </SelectItem>
                               ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select value={r.recipientCategory || ""} onValueChange={(value) => setRecipients((prev) => prev.map((item, i) => i === idx ? { ...item, recipientCategory: value as NonNullable<CertificateRecipient["recipientCategory"]> } : item))}>
+                            <SelectTrigger className="h-7 w-[150px] text-xs" aria-label={`Category for ${r.name}`}><SelectValue placeholder="Select category" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="participant">Participant</SelectItem>
+                              <SelectItem value="winner">Winner</SelectItem>
+                              <SelectItem value="organizer">Organizer</SelectItem>
+                              <SelectItem value="volunteer">Volunteer</SelectItem>
+                              <SelectItem value="team_member">Team member</SelectItem>
+                              <SelectItem value="faculty_coordinator">Faculty coordinator</SelectItem>
+                              <SelectItem value="mentor">Mentor</SelectItem>
+                              <SelectItem value="speaker">Speaker</SelectItem>
+                              <SelectItem value="judge">Judge</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>

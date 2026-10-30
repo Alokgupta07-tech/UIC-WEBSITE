@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_CERTIFICATE_SIGNATORIES, parseCertificateSignatoryConfiguration } from "@/lib/certificateSignatories";
 import type { SiteSettings, SocialLinks } from "@/types";
 
 export const DEFAULT_SOCIAL_LINKS: SocialLinks = {
@@ -11,6 +12,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   social: DEFAULT_SOCIAL_LINKS,
   siteUrl: null,
   siteOgImage: null,
+  certificateSignatories: DEFAULT_CERTIFICATE_SIGNATORIES,
 };
 
 export async function getSettings(): Promise<SiteSettings> {
@@ -38,7 +40,18 @@ export async function getSettings(): Promise<SiteSettings> {
     },
     siteUrl: getVal("site_url"),
     siteOgImage: getVal("site_og_image"),
+    certificateSignatories: parseCertificateSignatoryConfiguration(getVal("certificate_signatories")),
   };
+}
+
+export async function getCertificateSignatoryConfiguration() {
+  const { data, error } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", "certificate_signatories")
+    .maybeSingle();
+  if (error) throw error;
+  return parseCertificateSignatoryConfiguration(data?.value);
 }
 
 export async function updateSettings(input: {
@@ -47,6 +60,7 @@ export async function updateSettings(input: {
   linkedin?: string | null;
   site_og_image?: string | null;
   site_url?: string | null;
+  certificate_signatories?: SiteSettings["certificateSignatories"];
 }) {
   const { data: existing } = await supabase.from("site_settings").select("*");
   const existingMap = new Map(existing?.map(e => [e.key, e]) || []);
@@ -58,6 +72,15 @@ export async function updateSettings(input: {
     { key: "site_url", value: input.site_url || "", label: existingMap.get("site_url")?.label || "Site URL" },
     { key: "site_og_image", value: input.site_og_image || "", label: existingMap.get("site_og_image")?.label || "OG Image" },
   ];
+
+  if (input.certificate_signatories) {
+    const normalized = parseCertificateSignatoryConfiguration(JSON.stringify(input.certificate_signatories));
+    upserts.push({
+      key: "certificate_signatories",
+      value: JSON.stringify(normalized),
+      label: existingMap.get("certificate_signatories")?.label || "Certificate Signatories",
+    });
+  }
 
   const { error } = await supabase.from("site_settings").upsert(upserts, { onConflict: "key" });
   if (error) throw error;

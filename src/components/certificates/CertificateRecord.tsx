@@ -8,7 +8,6 @@ import {
   toDateTimeAttr,
 } from "@/lib/dates";
 import type { CertificateVerification } from "@/types";
-import { CERTIFICATE_SIGNATORIES } from "@/lib/certificateSignatories";
 
 const NOT_PROVIDED = "Not provided";
 
@@ -143,17 +142,17 @@ export function CertificateRecord({
           <div>
             <dt className="text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground">Faculty Coordinator</dt>
             <dd className="mt-1.5 space-y-1">
-              <img src={CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath} alt="Faculty Coordinator handwritten signature" loading="lazy" className="h-12 w-auto max-w-[16rem] object-contain" />
-              <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName}</p>
-              <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.facultyCoordinator.designation}</p>
+              {data.signerSignatureUrl && <img src={data.signerSignatureUrl} alt="Faculty Coordinator handwritten signature" loading="lazy" className="h-12 w-auto max-w-[16rem] object-contain" />}
+              <p className="text-sm font-semibold">{data.signerName || "Faculty Coordinator"}</p>
+              <p className="text-xs text-muted-foreground">{data.signerDesignation || ""}</p>
             </dd>
           </div>
           <div>
             <dt className="text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground">President</dt>
             <dd className="mt-1.5 space-y-1">
-              <img src={CERTIFICATE_SIGNATORIES.president.signaturePath} alt="Revanth Boina handwritten signature" loading="lazy" className="h-12 w-auto max-w-[16rem] object-contain" />
-              <p className="text-sm font-semibold">{CERTIFICATE_SIGNATORIES.president.printedName}</p>
-              <p className="text-xs text-muted-foreground">{CERTIFICATE_SIGNATORIES.president.designation}</p>
+              {data.signer2SignatureUrl && <img src={data.signer2SignatureUrl} alt="President handwritten signature" loading="lazy" className="h-12 w-auto max-w-[16rem] object-contain" />}
+              <p className="text-sm font-semibold">{data.signer2Name || "President"}</p>
+              <p className="text-xs text-muted-foreground">{data.signer2Designation || ""}</p>
             </dd>
           </div>
         </Group>

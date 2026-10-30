@@ -5,6 +5,8 @@
  * suggested skills, and template recommendations for UIC SRM AP certificates.
  */
 
+import type { CertificateCategory } from "@/types";
+
 export interface RolePreset {
   id: string;
   name: string;
@@ -289,6 +291,29 @@ export function findRolePreset(roleIdOrName: string): RolePreset | undefined {
   return ALL_ROLES.find(
     (role) => role.id.toLowerCase() === query || role.name.toLowerCase() === query
   );
+}
+
+/**
+ * Return a reviewed category from the stable role preset ID. Free-text role or
+ * team values are deliberately never used to infer a certificate category.
+ */
+export function getDefaultRecipientCategory(roleId: string): CertificateCategory | null {
+  for (const group of CERTIFICATE_TEAMS) {
+    if (!group.roles.some((role) => role.id === roleId)) continue;
+    if (group.id === "organizing") return roleId === "volunteer" ? "volunteer" : "organizer";
+    if (["technical", "marketing-pr", "operations-admin"].includes(group.id)) return "team_member";
+    if (group.id === "contest-awards") {
+      return roleId === "participant" ? "participant" : "winner";
+    }
+    const curatedCategories: Record<string, CertificateCategory> = {
+      "keynote-speaker": "speaker",
+      "judge-evaluator": "judge",
+      "workshop-instructor": "speaker",
+      mentor: "mentor",
+    };
+    return curatedCategories[roleId] ?? null;
+  }
+  return null;
 }
 
 /** Render a contribution template with dynamic event variables */

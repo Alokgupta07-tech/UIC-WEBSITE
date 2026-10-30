@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { RefreshCw, AlertTriangle } from "lucide-react";
@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { reissueCertificate } from "@/services/certificates";
 import type { Certificate } from "@/types";
+import type { CertificateCategory } from "@/types";
+import { CERTIFICATE_CATEGORIES } from "@/lib/certificateCategories";
 
 interface ReissueCertificateDialogProps {
   certificate: Certificate | null;
@@ -37,7 +39,12 @@ export function ReissueCertificateDialog({
   const [team, setTeam] = useState(certificate?.team || "");
   const [customTitle, setCustomTitle] = useState(certificate?.customTitle || "");
   const [contributionSummary, setContributionSummary] = useState(certificate?.contributionSummary || "");
+  const [recipientCategory, setRecipientCategory] = useState<CertificateCategory | null>(certificate?.recipientCategory || null);
   const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    setRecipientCategory(certificate?.recipientCategory || null);
+  }, [certificate?.id, certificate?.recipientCategory]);
 
   const reissueMutation = useMutation({
     mutationFn: async () => {
@@ -45,6 +52,7 @@ export function ReissueCertificateDialog({
       if (!reason.trim()) {
         throw new Error("Please specify the reason for reissuing this certificate.");
       }
+      if (!recipientCategory) throw new Error("Select the verified recipient category before reissuing.");
       return reissueCertificate(
         certificate.id,
         {
@@ -54,6 +62,7 @@ export function ReissueCertificateDialog({
           team: team.trim() || null,
           custom_title: customTitle.trim() || null,
           contribution_summary: contributionSummary.trim() || null,
+          recipient_category: recipientCategory,
         },
         reason.trim(),
         adminId
@@ -139,6 +148,20 @@ export function ReissueCertificateDialog({
               </div>
             </div>
 
+            <div>
+              <Label htmlFor="reissue-category">Verified recipient category *</Label>
+              <select
+                id="reissue-category"
+                value={recipientCategory || ""}
+                onChange={(event) => setRecipientCategory((event.target.value || null) as CertificateCategory | null)}
+                className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select category</option>
+                {CERTIFICATE_CATEGORIES.map((category) => (
+                  <option key={category.value} value={category.value}>{category.label}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <Label htmlFor="reissue-title">Official Title (Optional override)</Label>
               <Input

@@ -132,6 +132,11 @@ export function CertificateAuditDialog({
                       <span>Subject: {log.subject || "Official Certificate from UIC SRM University–AP"}</span>
                       <span>{new Date(log.createdAt).toLocaleString()}</span>
                     </div>
+                    {log.attachmentSha256 && (
+                      <p className="break-all text-[10px] text-muted-foreground">
+                        Attached PDF SHA-256: <code>{log.attachmentSha256}</code>
+                      </p>
+                    )}
                     {log.errorDetails && (
                       <p className="text-destructive font-mono text-[11px] bg-destructive/10 p-1.5 rounded">
                         Error: {log.errorDetails}

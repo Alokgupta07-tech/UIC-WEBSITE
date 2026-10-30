@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
+import { DEFAULT_CERTIFICATE_SIGNATORIES, normalizeCertificateSignaturePath } from "@/lib/certificateSignatories";
 
 export default function AdminSettings() {
   const qc = useQueryClient();
@@ -21,6 +22,7 @@ export default function AdminSettings() {
     linkedin: "",
     siteUrl: "",
     siteOgImage: "",
+    certificateSignatories: DEFAULT_CERTIFICATE_SIGNATORIES,
   });
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export default function AdminSettings() {
         linkedin: settings.social.linkedin || "",
         siteUrl: settings.siteUrl || "",
         siteOgImage: settings.siteOgImage || "",
+        certificateSignatories: settings.certificateSignatories,
       });
     }
   }, [settings]);
@@ -39,6 +42,7 @@ export default function AdminSettings() {
     mutationFn: (input: Parameters<typeof updateSettings>[0]) => updateSettings(input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["settings"] });
+      qc.invalidateQueries({ queryKey: ["certificate-signatories"] });
       toast.success("Settings saved successfully");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -51,6 +55,7 @@ export default function AdminSettings() {
       linkedin: form.linkedin || null,
       site_url: form.siteUrl || null,
       site_og_image: form.siteOgImage || null,
+      certificate_signatories: form.certificateSignatories,
     });
   }
 
@@ -122,6 +127,77 @@ export default function AdminSettings() {
               className="mt-1"
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Certificate Signatories</CardTitle>
+          <CardDescription>
+            These details are saved onto newly issued certificates. Signature images must be PNG files under public/assets/certificates/signatures; existing issued certificates keep their saved signatory details.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-2">
+          {(["facultyCoordinator", "president"] as const).map((key) => {
+            const signer = form.certificateSignatories[key];
+            const label = key === "facultyCoordinator" ? "Faculty Coordinator" : "President";
+            let previewPath: string | null = null;
+            try { previewPath = normalizeCertificateSignaturePath(signer.signaturePath); } catch { /* Show a validation hint below. */ }
+            return (
+              <section key={key} className="space-y-3 rounded-lg border p-4">
+                <h3 className="font-semibold">{label}</h3>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${key}-name`}>Printed name</Label>
+                  <Input
+                    id={`${key}-name`}
+                    maxLength={80}
+                    value={signer.printedName}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      certificateSignatories: {
+                        ...current.certificateSignatories,
+                        [key]: { ...current.certificateSignatories[key], printedName: event.target.value },
+                      },
+                    }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${key}-designation`}>Designation</Label>
+                  <Input
+                    id={`${key}-designation`}
+                    maxLength={140}
+                    value={signer.designation}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      certificateSignatories: {
+                        ...current.certificateSignatories,
+                        [key]: { ...current.certificateSignatories[key], designation: event.target.value },
+                      },
+                    }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${key}-signature`}>Signature image path</Label>
+                  <Input
+                    id={`${key}-signature`}
+                    value={signer.signaturePath}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      certificateSignatories: {
+                        ...current.certificateSignatories,
+                        [key]: { ...current.certificateSignatories[key], signaturePath: event.target.value },
+                      },
+                    }))}
+                  />
+                </div>
+                <div className="flex min-h-16 items-center justify-center rounded bg-muted/30 p-2">
+                  {previewPath
+                    ? <img src={previewPath} alt={`${label} signature preview`} className="max-h-14 max-w-full object-contain" />
+                    : <p className="text-xs text-destructive">Use a file path from the site's certificate signatures folder.</p>}
+                </div>
+              </section>
+            );
+          })}
         </CardContent>
       </Card>
 

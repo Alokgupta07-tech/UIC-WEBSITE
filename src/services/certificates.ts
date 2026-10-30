@@ -6,7 +6,8 @@
 // Nothing here trusts certificate data supplied by the client.
 import { supabase } from "@/integrations/supabase/client";
 import { isMissingTableError } from "@/services/supabaseErrors";
-import { CERTIFICATE_SIGNATORIES, loadCertificateSignatureDataUrl } from "@/lib/certificateSignatories";
+import { DEFAULT_CERTIFICATE_SIGNATORIES, loadCertificateSignatureDataUrl } from "@/lib/certificateSignatories";
+import { getCertificateSignatoryConfiguration } from "@/services/settings";
 import { buildVerificationUrl } from "@/lib/certificateUrls";
 import { getCertificatePdfBlob } from "@/lib/certificatePdf";
 import type { TablesInsert } from "@/integrations/supabase/types";
@@ -19,6 +20,7 @@ import type {
   CertificateTemplate,
   CertificateEmailLog,
   CertificateAuditLog,
+  CertificateCategory,
 } from "@/types";
 
 /** Path of the public verification page. Kept here so the QR payload, the
@@ -49,6 +51,7 @@ type CertificateRow = {
   certificate_number: string;
   verification_token: string;
   certificate_type: string;
+  recipient_category?: CertificateCategory | null;
   status: string;
   issue_date: string;
   recipient_name: string;
@@ -164,6 +167,7 @@ function mapCertificate(row: CertificateRow): Certificate {
     certificateNumber: row.certificate_number,
     verificationToken: row.verification_token,
     certificateType: row.certificate_type,
+    recipientCategory: row.recipient_category ?? null,
     status: toCertificateStatus(row.status),
     issueDate: row.issue_date,
 
@@ -174,13 +178,13 @@ function mapCertificate(row: CertificateRow): Certificate {
     organizerName: row.organizer_name,
     organizerOrganization: row.organizer_organization,
 
-    signerName: CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName,
-    signerDesignation: CERTIFICATE_SIGNATORIES.facultyCoordinator.designation,
-    signerSignatureUrl: CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath,
+    signerName: row.signer_name ?? DEFAULT_CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName,
+    signerDesignation: row.signer_designation ?? DEFAULT_CERTIFICATE_SIGNATORIES.facultyCoordinator.designation,
+    signerSignatureUrl: row.signer_signature_url ?? DEFAULT_CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath,
 
-    signer2Name: CERTIFICATE_SIGNATORIES.president.printedName,
-    signer2Designation: CERTIFICATE_SIGNATORIES.president.designation,
-    signer2SignatureUrl: CERTIFICATE_SIGNATORIES.president.signaturePath,
+    signer2Name: row.signer2_name ?? DEFAULT_CERTIFICATE_SIGNATORIES.president.printedName,
+    signer2Designation: row.signer2_designation ?? DEFAULT_CERTIFICATE_SIGNATORIES.president.designation,
+    signer2SignatureUrl: row.signer2_signature_url ?? DEFAULT_CERTIFICATE_SIGNATORIES.president.signaturePath,
 
     certificateFileUrl: row.certificate_file_url,
 
@@ -256,6 +260,7 @@ const NOT_FOUND: CertificateVerification = {
   verdict: "not_found",
   certificateNumber: null,
   certificateType: null,
+  recipientCategory: null,
   recipientName: null,
   eventTitle: null,
   eventDescription: null,
@@ -329,6 +334,7 @@ export async function verifyCertificate(token: string): Promise<CertificateVerif
     verdict,
     certificateNumber: row.certificate_number ?? null,
     certificateType: row.certificate_type ?? null,
+    recipientCategory: (row.recipient_category as CertificateCategory | null) ?? null,
     recipientName: row.recipient_name ?? null,
     eventTitle: row.event_title ?? null,
     eventDescription: row.event_description ?? null,
@@ -338,12 +344,12 @@ export async function verifyCertificate(token: string): Promise<CertificateVerif
     eventCategory: row.event_category ?? null,
     organizerName: row.organizer_name ?? null,
     organizerOrganization: row.organizer_organization ?? null,
-    signerName: CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName,
-    signerDesignation: CERTIFICATE_SIGNATORIES.facultyCoordinator.designation,
-    signerSignatureUrl: CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath,
-    signer2Name: CERTIFICATE_SIGNATORIES.president.printedName,
-    signer2Designation: CERTIFICATE_SIGNATORIES.president.designation,
-    signer2SignatureUrl: CERTIFICATE_SIGNATORIES.president.signaturePath,
+    signerName: row.signer_name ?? DEFAULT_CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName,
+    signerDesignation: row.signer_designation ?? DEFAULT_CERTIFICATE_SIGNATORIES.facultyCoordinator.designation,
+    signerSignatureUrl: row.signer_signature_url ?? DEFAULT_CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath,
+    signer2Name: row.signer2_name ?? DEFAULT_CERTIFICATE_SIGNATORIES.president.printedName,
+    signer2Designation: row.signer2_designation ?? DEFAULT_CERTIFICATE_SIGNATORIES.president.designation,
+    signer2SignatureUrl: row.signer2_signature_url ?? DEFAULT_CERTIFICATE_SIGNATORIES.president.signaturePath,
     certificateFileUrl: row.certificate_file_url ?? null,
     issueDate: row.issue_date ?? null,
     verifiedAt: row.verified_at ?? new Date().toISOString(),
@@ -393,6 +399,7 @@ export type CertificateInput = {
   recipient_name: string;
   recipient_email?: string | null;
   certificate_type?: string;
+  recipient_category?: CertificateCategory | null;
   organizer_name?: string | null;
   organizer_organization?: string;
   signer_name?: string | null;
@@ -467,6 +474,7 @@ export async function issueCertificate(
     throw new Error("Select a valid event before issuing the certificate.");
   }
   if (!input.recipient_name.trim()) throw new Error("Enter the recipient's name.");
+  if (!input.recipient_category) throw new Error("Select a verified recipient category before issuing this certificate.");
   if (input.recipient_email?.trim() && !EMAIL_PATTERN.test(input.recipient_email.trim())) {
     throw new Error("Enter a valid recipient email address.");
   }
@@ -475,9 +483,33 @@ export async function issueCertificate(
       throw new Error("Enter dates in YYYY-MM-DD format.");
     }
   }
+  if (input.recipient_category === "participant" || input.recipient_category === "winner") {
+    const { data: event, error: eventError } = await supabase
+      .from("events")
+      .select("event_date")
+      .eq("id", input.event_id)
+      .maybeSingle();
+    if (eventError) throw certificateIssueError(eventError);
+    const eventDay = event?.event_date?.slice(0, 10);
+    const issueDay = input.issue_date || new Date().toISOString().slice(0, 10);
+    if (eventDay && eventDay > issueDay) {
+      throw new Error("This participant certificate is dated before the event. Confirm the event date before issuing it.");
+    }
+  }
+  const configuredSignatories = await getCertificateSignatoryConfiguration();
+  const facultyCoordinator = {
+    printedName: input.signer_name?.trim() || configuredSignatories.facultyCoordinator.printedName,
+    designation: input.signer_designation?.trim() || configuredSignatories.facultyCoordinator.designation,
+    signaturePath: input.signer_signature_url || configuredSignatories.facultyCoordinator.signaturePath,
+  };
+  const president = {
+    printedName: input.signer2_name?.trim() || configuredSignatories.president.printedName,
+    designation: input.signer2_designation?.trim() || configuredSignatories.president.designation,
+    signaturePath: input.signer2_signature_url || configuredSignatories.president.signaturePath,
+  };
   await Promise.all([
-    loadCertificateSignatureDataUrl("facultyCoordinator"),
-    loadCertificateSignatureDataUrl("president"),
+    loadCertificateSignatureDataUrl(facultyCoordinator.signaturePath, facultyCoordinator.printedName),
+    loadCertificateSignatureDataUrl(president.signaturePath, president.printedName),
   ]);
 
   const insertPayload: TablesInsert<"certificates"> = {
@@ -485,14 +517,15 @@ export async function issueCertificate(
     recipient_name: input.recipient_name.trim(),
     recipient_email: input.recipient_email?.trim().toLowerCase() || null,
     certificate_type: input.certificate_type?.trim() || undefined,
+    recipient_category: input.recipient_category,
     organizer_name: input.organizer_name?.trim() || null,
     organizer_organization: input.organizer_organization?.trim() || undefined,
-    signer_name: CERTIFICATE_SIGNATORIES.facultyCoordinator.printedName,
-    signer_designation: CERTIFICATE_SIGNATORIES.facultyCoordinator.designation,
-    signer_signature_url: CERTIFICATE_SIGNATORIES.facultyCoordinator.signaturePath,
-    signer2_name: CERTIFICATE_SIGNATORIES.president.printedName,
-    signer2_designation: CERTIFICATE_SIGNATORIES.president.designation,
-    signer2_signature_url: CERTIFICATE_SIGNATORIES.president.signaturePath,
+    signer_name: facultyCoordinator.printedName,
+    signer_designation: facultyCoordinator.designation,
+    signer_signature_url: facultyCoordinator.signaturePath,
+    signer2_name: president.printedName,
+    signer2_designation: president.designation,
+    signer2_signature_url: president.signaturePath,
     certificate_file_url: input.certificate_file_url?.trim() || null,
     issue_date: input.issue_date || undefined,
     role: input.role?.trim() || null,
@@ -549,6 +582,7 @@ export type CertificateRecipient = {
   skills?: string[] | null;
   customTitle?: string | null;
   certificateType?: string | null;
+  recipientCategory?: CertificateCategory | null;
 };
 
 /**
@@ -600,6 +634,7 @@ export async function issueCertificatesBulk(
         skills: recipient.skills ?? shared.skills,
         custom_title: recipient.customTitle ?? shared.custom_title,
         certificate_type: recipient.certificateType ?? shared.certificate_type,
+        recipient_category: recipient.recipientCategory ?? shared.recipient_category,
       },
       createdBy
     );
@@ -621,6 +656,7 @@ export async function updateCertificate(
   if (updates.recipient_name !== undefined) payload.recipient_name = updates.recipient_name.trim();
   if (updates.recipient_email !== undefined) payload.recipient_email = updates.recipient_email?.trim().toLowerCase() || null;
   if (updates.certificate_type !== undefined) payload.certificate_type = updates.certificate_type.trim();
+  if (updates.recipient_category !== undefined) payload.recipient_category = updates.recipient_category;
   if (updates.role !== undefined) payload.role = updates.role?.trim() || null;
   if (updates.team !== undefined) payload.team = updates.team?.trim() || null;
   if (updates.contribution_summary !== undefined) payload.contribution_summary = updates.contribution_summary?.trim() || null;
@@ -696,6 +732,7 @@ export async function reissueCertificate(
     recipient_name: updates.recipient_name || oldRow.recipient_name,
     recipient_email: updates.recipient_email ?? oldRow.recipient_email,
     certificate_type: updates.certificate_type || oldRow.certificate_type,
+    recipient_category: updates.recipient_category ?? (oldRow.recipient_category as CertificateCategory | null),
     organizer_name: updates.organizer_name ?? oldRow.organizer_name,
     organizer_organization: updates.organizer_organization ?? oldRow.organizer_organization,
     signer_name: updates.signer_name ?? oldRow.signer_name,
@@ -776,6 +813,7 @@ export async function getCertificateEmailLogs(certificateId?: string): Promise<C
       recipientEmail: row.recipient_email,
       subject: row.subject,
       providerMessageId: row.provider_message_id,
+      attachmentSha256: row.attachment_sha256 ?? null,
       status: ["pending", "sent", "delivered", "failed", "bounced"].includes(row.status)
         ? row.status as CertificateEmailLog["status"]
         : "failed",
@@ -818,18 +856,26 @@ export async function sendCertificateEmail(
       eventVenue: certificate.eventVenue,
       eventIsOnline: certificate.eventIsOnline,
       certificateType: certificate.certificateType,
+      recipientCategory: certificate.recipientCategory,
       customTitle: certificate.customTitle,
       role: certificate.role,
       team: certificate.team,
       contributionSummary: certificate.contributionSummary,
       specialRecognition: certificate.specialRecognition,
       organizerOrganization: certificate.organizerOrganization,
+      signerName: certificate.signerName,
+      signerDesignation: certificate.signerDesignation,
+      signerSignatureUrl: certificate.signerSignatureUrl,
+      signer2Name: certificate.signer2Name,
+      signer2Designation: certificate.signer2Designation,
+      signer2SignatureUrl: certificate.signer2SignatureUrl,
       issueDate: certificate.issueDate,
       themeKey: certificate.templateKey,
     });
   } catch (error) {
     if (import.meta.env.DEV) console.error("Signed certificate PDF generation failed", error);
-    throw new Error("The signed certificate PDF could not be generated. No email was sent.");
+    const reason = error instanceof Error ? error.message : "unknown rendering error";
+    throw new Error(`The signed certificate PDF could not be generated. ${reason} No email was sent.`);
   }
 
   try {
@@ -878,7 +924,7 @@ export async function sendCertificateEmail(
 /** CSV export for the admin certificate table with role and team data. */
 export function certificatesToCSV(certificates: Certificate[]): string {
   const header =
-    "Certificate Number,Recipient,Email,Event,Role,Team,Certificate Type,Issue Date,Status,Email Status,Verification URL\n";
+    "Certificate Number,Recipient,Email,Event,Category,Role,Team,Certificate Type,Issue Date,Status,Email Status,Verification URL\n";
   const escape = (value: string | null | undefined) => `"${(value ?? "").replace(/"/g, '""')}"`;
   const rows = certificates.map((certificate) =>
     [
@@ -886,6 +932,7 @@ export function certificatesToCSV(certificates: Certificate[]): string {
       escape(certificate.recipientName),
       escape(certificate.recipientEmail),
       escape(certificate.eventTitle),
+      escape(certificate.recipientCategory),
       escape(certificate.role),
       escape(certificate.team),
       escape(certificate.certificateType),
@@ -938,6 +985,7 @@ export function parseRecipientsCSV(csvText: string): CertificateRecipient[] {
   const teamIdx = headers.findIndex((h) => h.includes("team") || h.includes("department"));
   const contribIdx = headers.findIndex((h) => h.includes("contrib") || h.includes("summary") || h.includes("reason"));
   const titleIdx = headers.findIndex((h) => h.includes("title") || h.includes("certtype"));
+  const categoryIdx = headers.findIndex((h) => h.includes("category") || h.includes("recipienttype"));
 
   if (nameIdx === -1) {
     throw new Error("CSV must include a 'Name' or 'Recipient' column.");
@@ -957,8 +1005,15 @@ export function parseRecipientsCSV(csvText: string): CertificateRecipient[] {
       team: teamIdx !== -1 && cols[teamIdx] ? cols[teamIdx].trim() : null,
       contributionSummary: contribIdx !== -1 && cols[contribIdx] ? cols[contribIdx].trim() : null,
       customTitle: titleIdx !== -1 && cols[titleIdx] ? cols[titleIdx].trim() : null,
+      recipientCategory: categoryIdx !== -1 && cols[categoryIdx] ? normalizeCertificateCategory(cols[categoryIdx]) : null,
     });
   }
 
   return recipients;
+}
+
+function normalizeCertificateCategory(value: string): CertificateCategory | null {
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const valid: CertificateCategory[] = ["participant", "winner", "organizer", "volunteer", "team_member", "faculty_coordinator", "mentor", "speaker", "judge", "other"];
+  return valid.includes(normalized as CertificateCategory) ? normalized as CertificateCategory : null;
 }

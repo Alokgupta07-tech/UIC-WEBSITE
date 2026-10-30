@@ -67,10 +67,7 @@ export interface ClubEvent {
   isRatingsOpen?: boolean | null;
   isLeaderboardPublished?: boolean | null;
   contestStatus?: ContestStatus | null;
-  isSubmissionsOpen?: boolean | null;
-  isRatingsOpen?: boolean | null;
   isGalleryPublished?: boolean | null;
-  isLeaderboardPublished?: boolean | null;
   submissionOpenAt?: string | null;
   submissionCloseAt?: string | null;
   ratingOpenAt?: string | null;
@@ -116,6 +113,12 @@ export interface SiteSettings {
   social: SocialLinks;
   siteUrl: string | null;
   siteOgImage: string | null;
+  certificateSignatories: CertificateSignatorySettings;
+}
+
+export interface CertificateSignatorySettings {
+  facultyCoordinator: { printedName: string; designation: string; signaturePath: string };
+  president: { printedName: string; designation: string; signaturePath: string };
 }
 
 export interface ContactMessage {
@@ -305,6 +308,7 @@ export interface Certificate {
   /** Opaque token that the printed QR code encodes. */
   verificationToken: string;
   certificateType: string;
+  recipientCategory: CertificateCategory | null;
   status: CertificateStatus;
   issueDate: string;
 
@@ -373,6 +377,18 @@ export type CertificateVerdict =
   | "invalid"
   | "not_found";
 
+export type CertificateCategory =
+  | "participant"
+  | "winner"
+  | "organizer"
+  | "volunteer"
+  | "team_member"
+  | "faculty_coordinator"
+  | "mentor"
+  | "speaker"
+  | "judge"
+  | "other";
+
 /**
  * The public face of a certificate — exactly what the `verify_certificate`
  * RPC returns. Contains no email, no account id and no verification token, so
@@ -382,6 +398,7 @@ export interface CertificateVerification {
   verdict: CertificateVerdict;
   certificateNumber: string | null;
   certificateType: string | null;
+  recipientCategory: CertificateCategory | null;
   recipientName: string | null;
 
   eventTitle: string | null;
@@ -439,6 +456,7 @@ export interface CertificateEmailLog {
   recipientEmail: string;
   subject: string | null;
   providerMessageId: string | null;
+  attachmentSha256: string | null;
   status: "pending" | "sent" | "delivered" | "failed" | "bounced";
   attemptCount: number;
   lastAttemptAt: string;
