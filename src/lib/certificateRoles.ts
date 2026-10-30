@@ -158,6 +158,17 @@ export const CERTIFICATE_TEAMS: TeamGroup[] = [
         suggestedSkills: ["Operations Governance", "Resource Allocation", "University Compliance", "Record Management"],
       },
       {
+        id: "admin-team",
+        name: "Administrative Team",
+        team: "Administrative Team",
+        defaultTitle: "CERTIFICATE OF APPRECIATION",
+        defaultCertificateType: "Administrative Support",
+        recommendedTheme: "cyber-emerald",
+        contributionTemplate:
+          "In recognition of diligent administrative support, operational coordination, documentation, and dedicated assistance towards the smooth execution of {event}.",
+        suggestedSkills: ["Administrative Support", "Operations Coordination", "Documentation", "Teamwork"],
+      },
+      {
         id: "logistics-manager",
         name: "Logistics & Hospitality Manager",
         team: "Logistics Team",
