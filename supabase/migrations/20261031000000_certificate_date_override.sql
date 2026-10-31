@@ -17,3 +17,4 @@ ALTER TABLE public.certificates
 CREATE INDEX IF NOT EXISTS certificates_date_override_idx
   ON public.certificates(date_override_at)
   WHERE date_override_at IS NOT NULL;
+
