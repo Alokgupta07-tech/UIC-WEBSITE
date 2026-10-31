@@ -259,6 +259,16 @@ function resolveTitleQualifier(
   return cleaned.startsWith("OF ") ? cleaned : cleaned;
 }
 
+/** Derive the title qualifier from the certificate type when no custom title exists. */
+function qualifierFromCertificateType(data: CertificatePdfData): string | null {
+  const type = (data.certificateType || "").toLowerCase();
+  if (type.includes("appreciation")) return "OF APPRECIATION";
+  if (type.includes("achievement")) return "OF ACHIEVEMENT";
+  if (type.includes("recognition")) return "OF RECOGNITION";
+  if (type.includes("participation")) return "OF PARTICIPATION";
+  return null;
+}
+
 /**
  * Generate a high resolution QR Code data URL using qrcode-generator
  */
@@ -451,9 +461,12 @@ function renderParticipantCertificate(
   });
 
   // 6. Large Premium Certificate Title
-  const qualifier = isWinner && !isAppreciationTitle
+  const fallbackQualifier = isAppreciationTitle
+    ? "OF APPRECIATION"
+    : isWinner
     ? "OF ACHIEVEMENT"
-    : resolveTitleQualifier(data, isAppreciationTitle ? "OF APPRECIATION" : "OF PARTICIPATION");
+    : "OF PARTICIPATION";
+  const qualifier = resolveTitleQualifier(data, qualifierFromCertificateType(data) ?? fallbackQualifier);
   drawCertificateTitle(doc, {
     centerX: width / 2,
     qualifier,
@@ -467,11 +480,14 @@ function renderParticipantCertificate(
     ruleColor: COLOR.gold,
   });
 
-  // 7. Classification Badge (PARTICIPANT / WINNER / SPECIAL RECOGNITION)
+  // 7. Classification Badge (PARTICIPANT • SPECIAL RECOGNITION / WINNER / category)
+  const appreciationBadgeBase = data.specialRecognition || "SPECIAL RECOGNITION";
   const categoryLabel = (
-    data.specialRecognition ||
-    (isAppreciationTitle && !isWinner ? "SPECIAL RECOGNITION" : getCertificateCategoryLabel(data.recipientCategory)) ||
-    (isWinner ? "WINNER" : "PARTICIPANT")
+    isAppreciationTitle && (data.recipientCategory === "participant" || isWinner)
+      ? `${isWinner ? "WINNER" : "PARTICIPANT"} • ${appreciationBadgeBase}`
+      : data.specialRecognition ||
+        getCertificateCategoryLabel(data.recipientCategory) ||
+        (isWinner ? "WINNER" : "PARTICIPANT")
   ).toUpperCase();
   const badgeWidth = Math.max(36, doc.getTextWidth(categoryLabel) + 12);
   fill(doc, [242, 248, 244]);
@@ -739,6 +755,12 @@ function renderOrganizerCertificate(
     }
   }
 
+  // Subtle UIC calligraphic watermark at the heart of the card
+  doc.setFont("GreatVibes", "normal");
+  doc.setFontSize(60);
+  doc.setTextColor(243, 247, 244);
+  doc.text("UIC", width / 2, 120, { align: "center" });
+
   // 5. Inner Card Dual Gold Border
   stroke(doc, COLOR.goldRich);
   doc.setLineWidth(0.8);
@@ -782,7 +804,7 @@ function renderOrganizerCertificate(
   });
 
   // 7. Large Premium Certificate Title
-  const qualifier = resolveTitleQualifier(data, "OF APPRECIATION");
+  const qualifier = resolveTitleQualifier(data, qualifierFromCertificateType(data) ?? "OF APPRECIATION");
   drawCertificateTitle(doc, {
     centerX: width / 2,
     qualifier,
@@ -807,10 +829,19 @@ function renderOrganizerCertificate(
     data.themeKey === "organizer-forest" ||
     data.themeKey === "organizer-prestige"
   );
+  const isAppreciationType = Boolean(
+    (data.customTitle && data.customTitle.toUpperCase().includes("APPRECIATION")) ||
+    (data.certificateType && data.certificateType.toUpperCase().includes("APPRECIATION"))
+  );
+  // 8. Classification Badge (PARTICIPANT • SPECIAL RECOGNITION / ORGANIZER / category)
+  const isWinner = data.recipientCategory === "winner";
+  const recognitionBase = data.specialRecognition || (isAppreciationType ? "SPECIAL RECOGNITION" : "RECOGNITION");
   const categoryLabel = (
-    data.specialRecognition ||
-    (isParticipantAppreciation ? "SPECIAL RECOGNITION" : getCertificateCategoryLabel(data.recipientCategory)) ||
-    (isOrganizerCategory ? "ORGANIZER" : "RECOGNITION")
+    isParticipantAppreciation && isParticipantCategory
+      ? `${isWinner ? "WINNER" : "PARTICIPANT"} • ${recognitionBase}`
+      : data.specialRecognition ||
+        getCertificateCategoryLabel(data.recipientCategory) ||
+        (isOrganizerCategory ? "ORGANIZER" : "RECOGNITION")
   ).toUpperCase();
 
   const orgBadgeWidth = Math.max(26, doc.getTextWidth(categoryLabel) + 10);

@@ -145,14 +145,22 @@ export function CertificateDesignSelector({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <h5 className="font-semibold text-sm leading-snug">Participant Certificate</h5>
+              <h5 className="font-semibold text-sm leading-snug">Premium Participant Certificate</h5>
               <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-800 border-emerald-200">
                 Participation
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">
-              Elegant emerald-green and gold participation certificate.
+              Elegant emerald-green and gold certificate for verified event participation.
             </p>
+            <div className="flex flex-wrap items-center gap-1 pt-0.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Types:</span>
+              {["Participation", "Appreciation", "Achievement"].map((type) => (
+                <Badge key={type} variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-normal">
+                  {type}
+                </Badge>
+              ))}
+            </div>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-2 pt-2 border-t">
@@ -277,14 +285,22 @@ export function CertificateDesignSelector({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <h5 className="font-semibold text-sm leading-snug">Appreciation / Organizer Certificate</h5>
+              <h5 className="font-semibold text-sm leading-snug">Premium Appreciation Certificate</h5>
               <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200">
                 Appreciation
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">
-              Premium geometric emerald-green and gold appreciation certificate for organizers and standout participants.
+              Premium institutional recognition certificate for outstanding participants, organizers, volunteers, and contributors.
             </p>
+            <div className="flex flex-wrap items-center gap-1 pt-0.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Categories:</span>
+              {["Participants", "Organizers", "Volunteers", "Mentors", "+ more"].map((category) => (
+                <Badge key={category} variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-normal">
+                  {category}
+                </Badge>
+              ))}
+            </div>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-2 pt-2 border-t">
