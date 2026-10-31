@@ -94,17 +94,23 @@ export function CertificateDesignSelector({
                 fill="#cda243"
               />
 
-              {/* Top left UIC emblem */}
-              <rect x="34" y="16" width="16" height="12" rx="2" fill="#064e3b" opacity="0.8" />
-              <text x="54" y="22" fontSize="5" fontWeight="bold" fill="#064e3b">UIC SRM-AP</text>
+              {/* Three-logo institutional header: Unstop | UIC | SRM University–AP */}
+              <circle cx="41" cy="20" r="4.5" fill="#15559a" />
+              <text x="47.5" y="22.5" fontSize="5.5" fontWeight="bold" fill="#15559a">unstop</text>
+              <text x="148.5" y="20.5" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#1c3f94">UIC</text>
+              <text x="148.5" y="25" textAnchor="middle" fontSize="2.4" letterSpacing="0.5" fill="#1c3f94">SRM-AP</text>
+              <circle cx="223" cy="20" r="3.4" fill="#6b6f2a" />
+              <text x="228" y="22.5" fontSize="6" fontWeight="bold" fill="#3f4220">SRM</text>
 
-              {/* Certificate Heading */}
-              <text x="148.5" y="42" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#0f2043" fontFamily="serif">
+              {/* Large Certificate Heading */}
+              <text x="148.5" y="44" textAnchor="middle" fontSize="15" fontWeight="bold" fill="#0f2043" fontFamily="serif">
                 CERTIFICATE
               </text>
-              <text x="148.5" y="50" textAnchor="middle" fontSize="5" fontWeight="bold" fill="#334155" letterSpacing="1.5">
+              <text x="148.5" y="52" textAnchor="middle" fontSize="4.6" fontWeight="bold" fill="#064e3b" letterSpacing="1.5">
                 OF PARTICIPATION
               </text>
+              <line x1="98" y1="55" x2="112" y2="55" stroke="#cda243" strokeWidth="0.5" />
+              <line x1="185" y1="55" x2="199" y2="55" stroke="#cda243" strokeWidth="0.5" />
 
               {/* Participant Pill */}
               <rect x="126" y="55" width="45" height="6" rx="3" fill="#f0fdf4" stroke="#064e3b" strokeWidth="0.5" />
@@ -224,55 +230,48 @@ export function CertificateDesignSelector({
                 strokeWidth="1"
               />
 
-              {/* Top-Right Diagonal Layered Ribbons */}
-              <polygon points="216,0 297,81 297,65 232,0" fill="#084836" />
-              <polygon points="232,0 297,65 297,50 247,0" fill="#cda243" />
-              <polygon points="247,0 297,50 297,43 254,0" fill="#0e6b50" />
+              {/* Three-logo institutional header: Unstop | UIC | SRM University–AP */}
+              <circle cx="33" cy="24" r="4" fill="#15559a" />
+              <text x="38.5" y="26.5" fontSize="5" fontWeight="bold" fill="#15559a">unstop</text>
+              <text x="148.5" y="24.5" textAnchor="middle" fontSize="6.5" fontWeight="bold" fill="#1c3f94">UIC</text>
+              <text x="148.5" y="28.5" textAnchor="middle" fontSize="2.2" letterSpacing="0.5" fill="#1c3f94">SRM-AP</text>
+              <circle cx="226" cy="24" r="3.2" fill="#6b6f2a" />
+              <text x="230.5" y="26.5" fontSize="5.5" fontWeight="bold" fill="#3f4220">SRM</text>
 
-              {/* Bottom-Left Diagonal Layered Ribbons */}
-              <polygon points="0,143 81,210 65,210 0,159" fill="#084836" />
-              <polygon points="0,159 65,210 50,210 0,174" fill="#cda243" />
-              <polygon points="0,174 50,210 43,210 0,181" fill="#0e6b50" />
-
-              {/* Upper Right Award Badge */}
-              <circle cx="216" cy="52" r="10" fill="#cda243" />
-              <circle cx="216" cy="52" r="8" fill="#064e3b" />
-              <polygon points="212,56 209,68 212,65 215,68 215,56" fill="#064e3b" />
-              <polygon points="217,56 214,68 217,65 220,68 220,56" fill="#064e3b" />
-
-              {/* Script Title "Certificate" */}
-              <text x="75" y="42" fontSize="16" fontStyle="italic" fill="#0f172a" fontFamily="cursive, serif">
-                Certificate
+              {/* Large Certificate Heading */}
+              <text x="148.5" y="48" textAnchor="middle" fontSize="13.5" fontWeight="bold" fill="#0c2a20" fontFamily="serif">
+                CERTIFICATE
               </text>
-              <line x1="30" y1="48" x2="65" y2="48" stroke="#cda243" strokeWidth="0.6" />
-              <text x="95" y="49.5" textAnchor="middle" fontSize="4.5" fontWeight="bold" fill="#1e293b" letterSpacing="1">
+              <text x="148.5" y="56" textAnchor="middle" fontSize="4.2" fontWeight="bold" fill="#064e3b" letterSpacing="1.3">
                 OF APPRECIATION
               </text>
-              <line x1="125" y1="48" x2="160" y2="48" stroke="#cda243" strokeWidth="0.6" />
+              <line x1="103" y1="59" x2="116" y2="59" stroke="#cda243" strokeWidth="0.5" />
+              <line x1="181" y1="59" x2="194" y2="59" stroke="#cda243" strokeWidth="0.5" />
 
               {/* Recipient name */}
-              <text x="30" y="74" fontSize="11" fontStyle="italic" fontWeight="bold" fill="#0f172a" fontFamily="serif">
+              <text x="148.5" y="74" textAnchor="middle" fontSize="10" fontStyle="italic" fontWeight="bold" fill="#0f172a" fontFamily="serif">
                 Name Surname
               </text>
 
               {/* Organizer Pill Badge */}
-              <rect x="30" y="80" width="35" height="6" rx="1.5" fill="#064e3b" />
-              <text x="47.5" y="84.5" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#ffffff">
+              <rect x="131" y="80" width="35" height="6" rx="1.5" fill="#064e3b" />
+              <text x="148.5" y="84.5" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#ffffff">
                 ORGANIZER
-              </text>
-              <text x="70" y="84.5" fontSize="3.8" fontWeight="bold" fill="#064e3b">
-                Lead • Operations Team
               </text>
 
               {/* Signatures */}
-              <line x1="40" y1="165" x2="80" y2="165" stroke="#cda243" strokeWidth="0.6" />
-              <text x="60" y="170" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#0f172a">Faculty Coordinator</text>
+              <line x1="70" y1="165" x2="120" y2="165" stroke="#cda243" strokeWidth="0.6" />
+              <text x="95" y="170" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#0f172a">Faculty Coordinator</text>
 
-              <line x1="120" y1="165" x2="160" y2="165" stroke="#cda243" strokeWidth="0.6" />
-              <text x="140" y="170" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#0f172a">President</text>
+              <line x1="177" y1="165" x2="227" y2="165" stroke="#cda243" strokeWidth="0.6" />
+              <text x="202" y="170" textAnchor="middle" fontSize="3.5" fontWeight="bold" fill="#0f172a">President</text>
+
+              {/* Centre recognition roundel */}
+              <circle cx="148.5" cy="178" r="5.5" fill="#cda243" />
+              <circle cx="148.5" cy="178" r="4.4" fill="#064e3b" />
 
               {/* QR Code */}
-              <rect x="235" y="160" width="12" height="12" fill="#cbd5e1" stroke="#cda243" strokeWidth="0.4" />
+              <rect x="256" y="166" width="12" height="12" fill="#cbd5e1" stroke="#cda243" strokeWidth="0.4" />
             </svg>
           </div>
 
