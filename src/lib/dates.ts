@@ -49,3 +49,28 @@ export function toDateTimeAttr(value: string | null | undefined): string | undef
   const date = toDate(value);
   return date ? date.toISOString() : undefined;
 }
+
+/**
+ * Extracts a consistent calendar date string in YYYY-MM-DD format,
+ * normalized against the SRM University–AP institutional timezone (Asia/Kolkata / IST UTC+5:30).
+ * Prevents UTC conversion off-by-one calendar discrepancies.
+ */
+export function extractDateOnly(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const date = toDate(trimmed);
+  if (!date) return trimmed.slice(0, 10);
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    return formatter.format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+

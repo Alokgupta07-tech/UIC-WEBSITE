@@ -359,6 +359,11 @@ export interface Certificate {
   participationStart: string | null;
   participationEnd: string | null;
 
+  /** Date validation override metadata (if issued under admin exception) */
+  dateOverrideReason?: string | null;
+  dateOverrideBy?: string | null;
+  dateOverrideAt?: string | null;
+
   eventId: string;
   eventTitle: string | null;
   eventDate: string | null;

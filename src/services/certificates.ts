@@ -10,6 +10,7 @@ import { DEFAULT_CERTIFICATE_SIGNATORIES, loadCertificateSignatureDataUrl } from
 import { getCertificateSignatoryConfiguration } from "@/services/settings";
 import { buildVerificationUrl } from "@/lib/certificateUrls";
 import { getCertificatePdfBlob } from "@/lib/certificatePdf";
+import { extractDateOnly } from "@/lib/dates";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import type {
   Certificate,
@@ -82,6 +83,9 @@ type CertificateRow = {
   revision_of?: string | null;
   participation_start?: string | null;
   participation_end?: string | null;
+  date_override_reason?: string | null;
+  date_override_by?: string | null;
+  date_override_at?: string | null;
   created_at: string;
   events?: {
     title: string;
@@ -206,6 +210,9 @@ function mapCertificate(row: CertificateRow): Certificate {
     revisionOf: row.revision_of ?? null,
     participationStart: row.participation_start ?? null,
     participationEnd: row.participation_end ?? null,
+    dateOverrideReason: row.date_override_reason ?? null,
+    dateOverrideBy: row.date_override_by ?? null,
+    dateOverrideAt: row.date_override_at ?? null,
 
     eventId: row.event_id,
     eventTitle: row.events?.title ?? null,
@@ -422,6 +429,12 @@ export type CertificateInput = {
   participation_start?: string | null;
   participation_end?: string | null;
   revision_of?: string | null;
+
+  /** Controlled administrator exception for date discrepancy */
+  date_override?: {
+    reason: string;
+    confirmed: boolean;
+  } | null;
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -483,19 +496,36 @@ export async function issueCertificate(
       throw new Error("Enter dates in YYYY-MM-DD format.");
     }
   }
-  if (input.recipient_category === "participant" || input.recipient_category === "winner") {
-    const { data: event, error: eventError } = await supabase
-      .from("events")
-      .select("event_date")
-      .eq("id", input.event_id)
-      .maybeSingle();
-    if (eventError) throw certificateIssueError(eventError);
-    const eventDay = event?.event_date?.slice(0, 10);
-    const issueDay = input.issue_date || new Date().toISOString().slice(0, 10);
-    if (eventDay && eventDay > issueDay) {
-      throw new Error("This participant certificate is dated before the event. Confirm the event date before issuing it.");
+  // Date validation against event chronology
+  const { data: event, error: eventError } = await supabase
+    .from("events")
+    .select("event_date")
+    .eq("id", input.event_id)
+    .maybeSingle();
+  if (eventError) throw certificateIssueError(eventError);
+
+  const eventDay = extractDateOnly(event?.event_date);
+  const issueDay = input.issue_date
+    ? extractDateOnly(input.issue_date)
+    : extractDateOnly(new Date().toISOString());
+
+  const isIssueBeforeEvent = Boolean(eventDay && issueDay && issueDay < eventDay);
+  const isParticipantCategory = input.recipient_category === "participant" || input.recipient_category === "winner";
+
+  let hasValidOverride = false;
+  if (isIssueBeforeEvent) {
+    if (input.date_override?.confirmed && input.date_override.reason?.trim()) {
+      if (!createdBy) {
+        throw new Error("An authorized administrator ID is required to apply a date validation override.");
+      }
+      hasValidOverride = true;
+    } else if (isParticipantCategory) {
+      throw new Error(
+        `This participant certificate is dated (${issueDay}) before the event date (${eventDay}). Adjust the issue date to on or after the event date, or provide an authorized administrator override reason.`
+      );
     }
   }
+
   const configuredSignatories = await getCertificateSignatoryConfiguration();
   const facultyCoordinator = {
     printedName: input.signer_name?.trim() || configuredSignatories.facultyCoordinator.printedName,
@@ -512,7 +542,7 @@ export async function issueCertificate(
     loadCertificateSignatureDataUrl(president.signaturePath, president.printedName),
   ]);
 
-  const insertPayload: TablesInsert<"certificates"> = {
+  const insertPayload: TablesInsert<"certificates"> & Record<string, unknown> = {
     event_id: input.event_id,
     recipient_name: input.recipient_name.trim(),
     recipient_email: input.recipient_email?.trim().toLowerCase() || null,
@@ -538,6 +568,9 @@ export async function issueCertificate(
     participation_start: input.participation_start || null,
     participation_end: input.participation_end || null,
     revision_of: input.revision_of || null,
+    date_override_reason: hasValidOverride ? input.date_override!.reason.trim() : null,
+    date_override_by: hasValidOverride ? createdBy : null,
+    date_override_at: hasValidOverride ? new Date().toISOString() : null,
     created_by: createdBy,
   };
 
@@ -556,13 +589,34 @@ export async function issueCertificate(
       await supabase.from("certificate_audit_log").insert({
         certificate_id: created.id,
         admin_id: createdBy,
-        action: input.revision_of ? "reissue" : "issue",
+        action: input.revision_of
+          ? "reissue"
+          : hasValidOverride
+          ? "issue_with_date_override"
+          : "issue",
         new_status: "issued",
+        reason: hasValidOverride ? input.date_override!.reason.trim() : null,
         metadata: {
           recipientName: created.recipientName,
           recipientEmail: created.recipientEmail,
           role: created.role,
           team: created.team,
+          certificateType: created.certificateType,
+          recipientCategory: created.recipientCategory,
+          templateKey: created.templateKey,
+          eventDate: eventDay,
+          issueDate: issueDay,
+          ...(hasValidOverride
+            ? {
+                dateOverride: {
+                  reason: input.date_override!.reason.trim(),
+                  adminId: createdBy,
+                  eventDate: eventDay,
+                  issueDate: issueDay,
+                  timestamp: new Date().toISOString(),
+                },
+              }
+            : {}),
         },
       });
     } catch {

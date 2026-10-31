@@ -280,6 +280,17 @@ export const CERTIFICATE_TEAMS: TeamGroup[] = [
         suggestedSkills: ["Novel Concept", "Design Thinking", "Technical Prototype"],
       },
       {
+        id: "participant-appreciation",
+        name: "Participant - Special Appreciation",
+        team: "Participants",
+        defaultTitle: "CERTIFICATE OF APPRECIATION",
+        defaultCertificateType: "Certificate of Appreciation",
+        recommendedTheme: "cyber-emerald",
+        contributionTemplate:
+          "In recognition of outstanding performance, creativity, initiative, and dedication demonstrated during {event}. Your valuable contribution and enthusiasm are sincerely appreciated by Unstop Igniters Club, SRM University–AP.",
+        suggestedSkills: ["Outstanding Performance", "Creativity", "Technical Curiosity", "Initiative"],
+      },
+      {
         id: "participant",
         name: "Active Participant",
         team: "Participants",
@@ -314,7 +325,7 @@ export function getDefaultRecipientCategory(roleId: string): CertificateCategory
     if (group.id === "organizing") return roleId === "volunteer" ? "volunteer" : "organizer";
     if (["technical", "marketing-pr", "operations-admin"].includes(group.id)) return "team_member";
     if (group.id === "contest-awards") {
-      return roleId === "participant" ? "participant" : "winner";
+      return roleId === "participant" || roleId === "participant-appreciation" ? "participant" : "winner";
     }
     const curatedCategories: Record<string, CertificateCategory> = {
       "keynote-speaker": "speaker",

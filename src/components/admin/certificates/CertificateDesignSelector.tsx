@@ -278,13 +278,13 @@ export function CertificateDesignSelector({
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
-              <h5 className="font-semibold text-sm leading-snug">Organizer Certificate</h5>
+              <h5 className="font-semibold text-sm leading-snug">Appreciation / Organizer Certificate</h5>
               <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-800 border-amber-200">
                 Appreciation
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">
-              Premium geometric emerald-green and gold appreciation certificate.
+              Premium geometric emerald-green and gold appreciation certificate for organizers and standout participants.
             </p>
           </div>
 

@@ -232,12 +232,22 @@ function renderParticipantCertificate(
   doc.setFont("UICSans", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(30, 41, 59);
-  const defaultSub = isWinner ? "OF ACHIEVEMENT" : "OF PARTICIPATION";
-  const subTitle = (data.customTitle ? data.customTitle.toUpperCase() : defaultSub);
+  const isAppreciationTitle = (data.customTitle && data.customTitle.toUpperCase().includes("APPRECIATION")) ||
+    (data.certificateType && data.certificateType.toUpperCase().includes("APPRECIATION"));
+  const defaultSub = isWinner ? "OF ACHIEVEMENT" : isAppreciationTitle ? "OF APPRECIATION" : "OF PARTICIPATION";
+  let subTitle = defaultSub;
+  if (data.customTitle) {
+    const upper = data.customTitle.toUpperCase();
+    subTitle = upper.includes("OF ") ? upper.slice(upper.indexOf("OF ")) : upper;
+  }
   doc.text(subTitle, width / 2, 44.5, { align: "center" });
 
-  // 7. Classification Badge (PARTICIPANT / WINNER)
-  const categoryLabel = (getCertificateCategoryLabel(data.recipientCategory) || (isWinner ? "WINNER" : "PARTICIPANT")).toUpperCase();
+  // 7. Classification Badge (PARTICIPANT / WINNER / SPECIAL RECOGNITION)
+  const categoryLabel = (
+    data.specialRecognition ||
+    (isAppreciationTitle && !isWinner ? "SPECIAL RECOGNITION" : getCertificateCategoryLabel(data.recipientCategory)) ||
+    (isWinner ? "WINNER" : "PARTICIPANT")
+  ).toUpperCase();
   const badgeWidth = Math.max(36, doc.getTextWidth(categoryLabel) + 12);
   doc.setFillColor(242, 248, 244);
   doc.setDrawColor(6, 78, 59);
@@ -296,6 +306,8 @@ function renderParticipantCertificate(
   const organizerOrg = data.organizerOrganization || "Unstop Igniters Club, SRM University–AP";
   const defaultDesc = isWinner
     ? `This certificate is awarded in recognition of outstanding performance and achievement in ${data.eventTitle}, organized by ${organizerOrg}${formattedEventDate ? ` on ${formattedEventDate}` : ""}.`
+    : isAppreciationTitle
+    ? `This certificate is awarded in sincere appreciation of exceptional performance, initiative, and dedication in ${data.eventTitle}, organized by ${organizerOrg}${formattedEventDate ? ` on ${formattedEventDate}` : ""}.`
     : `This certificate is awarded in recognition of participation in ${data.eventTitle}, organized by ${organizerOrg}${formattedEventDate ? ` on ${formattedEventDate}` : ""}.`;
   const descText = data.contributionSummary || defaultDesc;
 
@@ -677,6 +689,18 @@ function renderOrganizerCertificate(
   doc.circle(badgeX, badgeY, 8.8, "S");
 
   // Badge typography
+  const isOrganizerCategory = data.recipientCategory === "organizer";
+  const isParticipantCategory = data.recipientCategory === "participant" || data.recipientCategory === "winner";
+  const badgeSubtext = isOrganizerCategory
+    ? "ORGANIZER"
+    : data.recipientCategory === "volunteer"
+    ? "VOLUNTEER"
+    : data.recipientCategory === "team_member"
+    ? "CORE TEAM"
+    : isParticipantCategory
+    ? "RECOGNITION"
+    : (getCertificateCategoryLabel(data.recipientCategory) || "RECOGNITION").toUpperCase();
+
   doc.setFont("UICSans", "bold");
   doc.setFontSize(4);
   doc.setTextColor(255, 255, 255);
@@ -686,7 +710,7 @@ function renderOrganizerCertificate(
   doc.setFontSize(4.5);
   doc.text("UIC AWARD", badgeX, badgeY + 3.2, { align: "center" });
   doc.setFontSize(3.5);
-  doc.text("ORGANIZER", badgeX, badgeY + 6, { align: "center" });
+  doc.text(badgeSubtext, badgeX, badgeY + 6, { align: "center" });
 
   // 8. Main Certificate Heading (Script Calligraphy)
   const contentLeft = cardX + 18;
@@ -737,7 +761,19 @@ function renderOrganizerCertificate(
 
   // 11. Classification Badge & Role
   let currentY = nameY + (recipientLines.length - 1) * recipientFontSize * 0.4 + 9;
-  const categoryLabel = (getCertificateCategoryLabel(data.recipientCategory) || "ORGANIZER").toUpperCase();
+  const isParticipantAppreciation = isParticipantCategory && (
+    (data.customTitle && data.customTitle.toUpperCase().includes("APPRECIATION")) ||
+    (data.certificateType && data.certificateType.toUpperCase().includes("APPRECIATION")) ||
+    data.themeKey === "organizer-forest" ||
+    data.themeKey === "organizer-prestige"
+  );
+
+  const categoryLabel = (
+    data.specialRecognition ||
+    (isParticipantAppreciation ? "SPECIAL RECOGNITION" : getCertificateCategoryLabel(data.recipientCategory)) ||
+    (isOrganizerCategory ? "ORGANIZER" : "RECOGNITION")
+  ).toUpperCase();
+
   const orgBadgeWidth = Math.max(26, doc.getTextWidth(categoryLabel) + 10);
   doc.setFillColor(6, 78, 59); // Deep emerald fill
   doc.roundedRect(contentLeft, currentY - 4, orgBadgeWidth, 5.5, 1.2, 1.2, "F");
@@ -762,7 +798,9 @@ function renderOrganizerCertificate(
   doc.setFont("UICSans", "normal");
   const formattedEventDate = formatEventDate(data.eventDate) || data.eventDate;
   const organizerOrg = data.organizerOrganization || "Unstop Igniters Club, SRM University–AP";
-  const defaultStatement = `In recognition of valuable contributions, dedication, and efforts towards the successful organization of ${data.eventTitle} by ${organizerOrg}.`;
+  const defaultStatement = isParticipantCategory
+    ? `In recognition of outstanding performance, creativity, initiative, and dedication demonstrated during ${data.eventTitle}. Your valuable contribution and enthusiasm are sincerely appreciated by ${organizerOrg}.`
+    : `In recognition of valuable contributions, dedication, and efforts towards the successful organization of ${data.eventTitle} by ${organizerOrg}.`;
   const statement = data.contributionSummary || defaultStatement;
 
   let blurbFontSize = 9.5;
@@ -907,12 +945,18 @@ export async function createCertificatePdf(data: CertificatePdfData): Promise<js
   const family = getCertificateFamily(data.recipientCategory);
   const explicitParticipant = data.themeKey === "participant-classic" || data.themeKey === "participant-emerald";
   const explicitOrganizer = data.themeKey === "organizer-forest" || data.themeKey === "organizer-prestige";
+  const isExplicitAppreciation = Boolean(
+    (data.certificateType && data.certificateType.toLowerCase().includes("appreciation")) ||
+    (data.customTitle && data.customTitle.toLowerCase().includes("appreciation"))
+  );
 
   const isParticipantTemplate = explicitParticipant
     ? true
     : explicitOrganizer
       ? false
-      : family === "participant";
+      : isExplicitAppreciation
+        ? false
+        : family === "participant";
 
   if (isParticipantTemplate) {
     renderParticipantCertificate(doc, data, signatories, verifyUrl, qrDataUrl, logoDataUrl);

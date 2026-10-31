@@ -17,6 +17,8 @@ import {
   FileSpreadsheet,
   CheckCircle,
   AlertCircle,
+  AlertTriangle,
+  Calendar,
   Clock,
   Sparkles,
   Filter,
@@ -97,10 +99,17 @@ import {
   getDefaultRecipientCategory,
   renderContributionBlurb,
 } from "@/lib/certificateRoles";
-import { formatEventDate } from "@/lib/dates";
+import { formatEventDate, extractDateOnly } from "@/lib/dates";
 import { downloadQrSvg } from "@/lib/qr";
 import { CERTIFICATE_CATEGORIES, getCertificateCategoryLabel } from "@/lib/certificateCategories";
 import type { Certificate, CertificateCategory, CertificateEmailStatus } from "@/types";
+
+const STANDARD_CERTIFICATE_TYPES = [
+  "Certificate of Participation",
+  "Certificate of Appreciation",
+  "Certificate of Achievement",
+  "Certificate of Recognition",
+];
 
 const INITIAL_FORM = {
   recipient_name: "",
@@ -110,11 +119,13 @@ const INITIAL_FORM = {
   role: "Active Participant",
   team: "Participants",
   custom_title: "CERTIFICATE OF PARTICIPATION",
-  certificate_type: "Participation",
+  certificate_type: "Certificate of Participation",
   template_key: "participant-emerald",
   contribution_summary: "",
   organizer_organization: "Unstop Igniters Club, SRM AP",
-  issue_date: "",
+  issue_date: new Date().toISOString().slice(0, 10),
+  override_confirmed: false,
+  override_reason: "",
   auto_email: true,
 };
 
@@ -186,6 +197,18 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
     [events, eventId]
   );
 
+  const storedEventDay = useMemo(() => {
+    const raw = selectedEvent?.startDate || (selectedEvent as unknown as { event_date?: string })?.event_date || (selectedEvent as unknown as { eventDate?: string })?.eventDate;
+    return extractDateOnly(raw);
+  }, [selectedEvent]);
+
+  const currentIssueDay = useMemo(() => {
+    return form.issue_date ? extractDateOnly(form.issue_date) : extractDateOnly(new Date().toISOString());
+  }, [form.issue_date]);
+
+  const isIssueBeforeEvent = Boolean(storedEventDay && currentIssueDay && currentIssueDay < storedEventDay);
+  const isEventUpcoming = Boolean(storedEventDay && storedEventDay > (extractDateOnly(new Date().toISOString()) || ""));
+
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["certificates-admin"] });
     void queryClient.invalidateQueries({ queryKey: ["all-certificate-audit-logs"] });
@@ -249,8 +272,9 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
     });
 
     const category = getDefaultRecipientCategory(preset.id) || form.recipient_category;
-    const isParticipant = category === "participant" || category === "winner";
-    const defaultTemplate = isParticipant ? "participant-emerald" : "organizer-forest";
+    const isAppreciationPreset = preset.defaultTitle.includes("APPRECIATION") || preset.id === "participant-appreciation";
+    const isParticipantOnly = (category === "participant" || category === "winner") && !isAppreciationPreset;
+    const defaultTemplate = isParticipantOnly ? "participant-emerald" : "organizer-forest";
 
     setForm((prev) => ({
       ...prev,
@@ -315,6 +339,20 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
       if (!eventId) throw new Error("Select an event first.");
       if (!form.recipient_name.trim()) throw new Error("Enter the recipient's name.");
 
+      const eventDateRaw = selectedEvent?.startDate || (selectedEvent as any)?.event_date || (selectedEvent as any)?.eventDate;
+      const storedEventDay = extractDateOnly(eventDateRaw);
+      const currentIssueDay = form.issue_date ? extractDateOnly(form.issue_date) : extractDateOnly(new Date().toISOString());
+      const isIssueBeforeEvent = Boolean(storedEventDay && currentIssueDay && currentIssueDay < storedEventDay);
+      const isParticipantCategory = form.recipient_category === "participant" || form.recipient_category === "winner";
+
+      if (isIssueBeforeEvent && isParticipantCategory) {
+        if (!form.override_confirmed || !form.override_reason.trim()) {
+          throw new Error(
+            `This participant certificate issue date (${currentIssueDay}) is dated before the event (${storedEventDay}). Adjust the issue date to on or after the event date, or record an authorized administrator override reason.`
+          );
+        }
+      }
+
       const cert = await issueCertificate(
         {
           event_id: eventId,
@@ -329,6 +367,10 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
           contribution_summary: form.contribution_summary,
           organizer_organization: form.organizer_organization,
           issue_date: form.issue_date || null,
+          date_override: isIssueBeforeEvent && form.override_confirmed && form.override_reason.trim() ? {
+            reason: form.override_reason.trim(),
+            confirmed: true,
+          } : null,
         },
         createdBy
       );
@@ -940,24 +982,50 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                     placeholder="e.g. aryan@srmap.edu.in"
                   />
                 </div>
+
                 <div>
-                  <Label htmlFor="single-category">Verified recipient category *</Label>
+                  <Label htmlFor="single-category">Verified Recipient Category *</Label>
                   <Select
                     value={form.recipient_category}
                     onValueChange={(value) => {
                       const cat = value as typeof form.recipient_category;
+                      const isCurrentAppreciation =
+                        form.certificate_type === "Certificate of Appreciation" ||
+                        form.custom_title.includes("APPRECIATION");
                       const isParticipant = cat === "participant" || cat === "winner";
-                      const defaultTemplate = isParticipant ? "participant-emerald" : "organizer-forest";
-                      const defaultTitle = cat === "winner" ? "CERTIFICATE OF ACHIEVEMENT" : isParticipant ? "CERTIFICATE OF PARTICIPATION" : "CERTIFICATE OF APPRECIATION";
+
+                      let defaultTemplate = form.template_key;
+                      let defaultTitle = form.custom_title;
+                      let defaultType = form.certificate_type;
+
+                      if (!isCurrentAppreciation) {
+                        defaultTemplate = isParticipant ? "participant-emerald" : "organizer-forest";
+                        defaultTitle =
+                          cat === "winner"
+                            ? "CERTIFICATE OF ACHIEVEMENT"
+                            : isParticipant
+                            ? "CERTIFICATE OF PARTICIPATION"
+                            : "CERTIFICATE OF APPRECIATION";
+                        defaultType =
+                          cat === "winner"
+                            ? "Certificate of Achievement"
+                            : isParticipant
+                            ? "Certificate of Participation"
+                            : "Certificate of Appreciation";
+                      }
+
                       setForm((prev) => ({
                         ...prev,
                         recipient_category: cat,
                         template_key: defaultTemplate,
                         custom_title: defaultTitle,
+                        certificate_type: defaultType,
                       }));
                     }}
                   >
-                    <SelectTrigger id="single-category"><SelectValue placeholder="Choose category" /></SelectTrigger>
+                    <SelectTrigger id="single-category">
+                      <SelectValue placeholder="Choose category" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="participant">Participant</SelectItem>
                       <SelectItem value="winner">Winner</SelectItem>
@@ -972,7 +1040,149 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div>
+                  <Label htmlFor="single-cert-type">Certificate Type *</Label>
+                  <Select
+                    value={form.certificate_type}
+                    onValueChange={(value) => {
+                      const eventTitle = selectedEvent?.title || "the event";
+                      const isAppreciation = value === "Certificate of Appreciation";
+                      const isParticipation = value === "Certificate of Participation";
+                      const isAchievement = value === "Certificate of Achievement";
+                      const isRecognition = value === "Certificate of Recognition";
+
+                      const newTitle = isAppreciation
+                        ? "CERTIFICATE OF APPRECIATION"
+                        : isAchievement
+                        ? "CERTIFICATE OF ACHIEVEMENT"
+                        : isRecognition
+                        ? "CERTIFICATE OF RECOGNITION"
+                        : "CERTIFICATE OF PARTICIPATION";
+
+                      const newTemplate = isAppreciation
+                        ? "organizer-forest"
+                        : isParticipation
+                        ? "participant-emerald"
+                        : form.template_key;
+
+                      let newSummary = form.contribution_summary;
+                      if (isAppreciation && (!newSummary || newSummary.includes("For actively participating"))) {
+                        newSummary = `In recognition of outstanding performance, creativity, initiative, and dedication demonstrated during ${eventTitle}. Your valuable contribution and enthusiasm are sincerely appreciated by Unstop Igniters Club, SRM University–AP.`;
+                      } else if (isParticipation && (!newSummary || newSummary.includes("In recognition of outstanding performance"))) {
+                        newSummary = `For actively participating and demonstrating commendable enthusiasm, technical curiosity, and collaborative spirit in ${eventTitle}.`;
+                      }
+
+                      setForm((prev) => ({
+                        ...prev,
+                        certificate_type: value,
+                        custom_title: newTitle,
+                        template_key: newTemplate,
+                        contribution_summary: newSummary,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger id="single-cert-type">
+                      <SelectValue placeholder="Choose certificate type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STANDARD_CERTIFICATE_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="single-issue-date">Certificate Issue Date *</Label>
+                  <Input
+                    id="single-issue-date"
+                    type="date"
+                    value={form.issue_date}
+                    onChange={(e) => setForm((prev) => ({ ...prev, issue_date: e.target.value }))}
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Intended calendar issuance date in SRM University–AP institutional timezone.
+                  </p>
+                </div>
+
+                <div className="flex flex-col justify-center space-y-1 rounded-lg border bg-muted/30 p-3">
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                    Stored Event Date
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {storedEventDay ? formatEventDate(storedEventDay) : "No event selected"}
+                    </span>
+                    {storedEventDay && (
+                      <Badge variant={isEventUpcoming ? "secondary" : "outline"} className="text-[10px]">
+                        {isEventUpcoming ? "Upcoming" : "Concluded"}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Date Discrepancy & Controlled Admin Override Banner */}
+              {isIssueBeforeEvent && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/20 p-4 space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                        Date Chronology Warning: Issue Date ({currentIssueDay}) is dated before Event Date ({storedEventDay})
+                      </p>
+                      <p className="text-xs text-amber-800/90 dark:text-amber-300/80">
+                        {isEventUpcoming
+                          ? "This event has not yet taken place. Participant certificates cannot claim completed attendance or performance prior to the event unless an authorized administrator exception is recorded."
+                          : "The certificate issue date is recorded before the official event date. Please confirm the issue date or document an authorized administrator override."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200 dark:border-amber-900/40">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="text-xs bg-white hover:bg-amber-100/60 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100 border-amber-300 dark:border-amber-800"
+                      onClick={() => setForm((prev) => ({ ...prev, issue_date: storedEventDay || prev.issue_date }))}
+                    >
+                      Set Issue Date to Event Date ({storedEventDay})
+                    </Button>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200/80 bg-white/70 dark:bg-amber-950/40 p-3 space-y-2.5">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="override-date-check"
+                        checked={form.override_confirmed}
+                        onCheckedChange={(checked) => setForm((prev) => ({ ...prev, override_confirmed: Boolean(checked) }))}
+                      />
+                      <Label htmlFor="override-date-check" className="text-xs font-semibold cursor-pointer">
+                        Authorize Advance Recognition Exception (Admin Override)
+                      </Label>
+                    </div>
+                    {form.override_confirmed && (
+                      <div className="space-y-1 pl-6">
+                        <Label htmlFor="override-reason-input" className="text-[11px] font-medium text-muted-foreground">
+                          Override Justification / Reason * (Recorded in official audit log)
+                        </Label>
+                        <Input
+                          id="override-reason-input"
+                          value={form.override_reason}
+                          onChange={(e) => setForm((prev) => ({ ...prev, override_reason: e.target.value }))}
+                          placeholder="e.g. Authorized advance appreciation for milestone contest performance"
+                          className="text-xs h-8"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Role & Team Selector */}
               <div className="p-4 rounded-xl border bg-muted/20 space-y-4">

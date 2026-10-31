@@ -9,6 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "test:certificate-pdf": "node scripts/verify-certificate-pdf.mjs",
+    "test:certificate-date": "node scripts/verify-date-validation.mjs",
+    "test:certificates": "node scripts/verify-certificate-pdf.mjs && node scripts/verify-date-validation.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
