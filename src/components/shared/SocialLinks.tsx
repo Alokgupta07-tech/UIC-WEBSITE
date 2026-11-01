@@ -3,7 +3,8 @@ import { useSettings } from "@/contexts/SettingsContext";
 
 type LinkItem = {
   key: string;
-  href: string | null;
+  /** Resolved at render time from site settings via getHref(). */
+  href?: string | null;
   icon: typeof Instagram;
   label: string;
 };

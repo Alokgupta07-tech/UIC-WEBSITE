@@ -198,8 +198,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
   );
 
   const storedEventDay = useMemo(() => {
-    const raw = selectedEvent?.startDate || (selectedEvent as unknown as { event_date?: string })?.event_date || (selectedEvent as unknown as { eventDate?: string })?.eventDate;
-    return extractDateOnly(raw);
+    return extractDateOnly(selectedEvent?.eventDate);
   }, [selectedEvent]);
 
   const currentIssueDay = useMemo(() => {
@@ -310,6 +309,11 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
       signer2Designation: certificateSignatories.president.designation,
       signer2SignatureUrl: certificateSignatories.president.signaturePath,
       certificateFileUrl: null,
+      pdfUrl: null,
+      revisionOf: null,
+      participationStart: null,
+      participationEnd: null,
+      eventId: eventId || "draft-event",
       role: form.role || null,
       team: form.team || null,
       contributionSummary: form.contribution_summary || null,
@@ -321,14 +325,12 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
       emailSentAt: null,
       emailError: null,
       downloadCount: 0,
-      lastDownloadedAt: null,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       eventTitle: selectedEvent?.title || "UIC Event",
-      eventDate: selectedEvent?.startDate || new Date().toISOString(),
+      eventDate: selectedEvent?.eventDate || new Date().toISOString(),
       eventVenue: selectedEvent?.venue || "SRM University–AP",
       eventIsOnline: selectedEvent?.isOnline || false,
-      eventCategory: selectedEvent?.category || null,
+      eventCategory: selectedEvent?.category?.name ?? null,
     };
     setPreviewTarget(draftCertificate);
   };
@@ -339,7 +341,7 @@ export function CertificatesPanel({ createdBy }: { createdBy: string | null }) {
       if (!eventId) throw new Error("Select an event first.");
       if (!form.recipient_name.trim()) throw new Error("Enter the recipient's name.");
 
-      const eventDateRaw = selectedEvent?.startDate || (selectedEvent as any)?.event_date || (selectedEvent as any)?.eventDate;
+      const eventDateRaw = selectedEvent?.eventDate;
       const storedEventDay = extractDateOnly(eventDateRaw);
       const currentIssueDay = form.issue_date ? extractDateOnly(form.issue_date) : extractDateOnly(new Date().toISOString());
       const isIssueBeforeEvent = Boolean(storedEventDay && currentIssueDay && currentIssueDay < storedEventDay);

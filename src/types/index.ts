@@ -1,7 +1,7 @@
 // Domain types — UI-friendly, decoupled from the raw Supabase row shapes.
 // The services layer maps DB rows into these.
 
-export type EventStatus = "draft" | "published";
+export type EventStatus = "draft" | "published" | "archived";
 
 export type AttendanceCodeStatus = "unused" | "used";
 
@@ -57,7 +57,7 @@ export interface ClubEvent {
   registrationDeadline: string | null;
   isPublished: boolean | null;
   isUpcoming: boolean | null;
-  status: "published" | "draft";
+  status: "published" | "draft" | "archived";
   unstopRegistrationLink: string | null;
   category: { id: string; name: string; color: string | null } | null;
   createdAt: string | null;
@@ -106,6 +106,8 @@ export interface TeamMember {
 export interface SocialLinks {
   instagram: string | null;
   linkedin: string | null;
+  youtube?: string | null;
+  whatsappCommunity?: string | null;
 }
 
 export interface SiteSettings {
@@ -209,6 +211,10 @@ export interface ContestSubmission {
   ratingCount: number;
   submittedAt: string;
   updatedAt: string;
+  /** Populated for admin listings via the profiles embed. */
+  participantName?: string | null;
+  participantEmail?: string | null;
+  participantAvatar?: string | null;
 }
 
 export interface ContestSubmissionWithDetails extends ContestSubmission {

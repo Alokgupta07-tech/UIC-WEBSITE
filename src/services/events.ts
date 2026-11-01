@@ -1,7 +1,7 @@
 // Supabase query helpers for events.
 // All reads here are subject to RLS (public sees only published).
 import { supabase } from "@/integrations/supabase/client";
-import type { ClubEvent } from "@/types";
+import type { ClubEvent, EventStatus } from "@/types";
 import type { ContestStatus } from "@/types";
 import { isMissingTableError } from "@/services/supabaseErrors";
 import { isPast } from "date-fns";
@@ -166,6 +166,8 @@ export type EventInput = {
   is_online?: boolean | null;
   meeting_link?: string | null;
   image_url?: string | null;
+  banner_image?: string | null;
+  status?: EventStatus;
   max_participants?: number | null;
   registration_deadline?: string | null;
   event_type?: string | null;
@@ -198,6 +200,8 @@ export async function createEvent(input: EventInput, createdBy: string) {
       is_ratings_open: input.is_ratings_open ?? false,
       is_leaderboard_published: input.is_leaderboard_published ?? false,
       unstop_registration_link: input.unstop_registration_link ?? null,
+      banner_image: input.banner_image ?? null,
+      status: input.status ?? "draft",
       is_published: true,
       created_by: createdBy,
     };
@@ -240,6 +244,8 @@ export async function updateEvent(id: string, input: Partial<EventInput>) {
     if (input.is_ratings_open !== undefined) safeInput.is_ratings_open = input.is_ratings_open;
     if (input.is_leaderboard_published !== undefined) safeInput.is_leaderboard_published = input.is_leaderboard_published;
     if (input.unstop_registration_link !== undefined) safeInput.unstop_registration_link = input.unstop_registration_link;
+    if (input.banner_image !== undefined) safeInput.banner_image = input.banner_image;
+    if (input.status !== undefined) safeInput.status = input.status;
 
     const { data, error } = await supabase
       .from("events")

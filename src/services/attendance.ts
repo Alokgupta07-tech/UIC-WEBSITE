@@ -134,7 +134,7 @@ export async function getEventAttendance(eventId: string): Promise<AttendanceRec
       p_event_id: eventId,
     });
     if (error) throw error;
-    return (data ?? []).map((row: Record<string, unknown>) => ({
+    return (data ?? []).map((row) => ({
       id: row.id,
       eventId,
       userId: row.user_id,
@@ -253,15 +253,23 @@ export async function generateParticipantCodes(
     throw new Error("Unable to generate the codes. Please try again.");
   }
 
-  const b = data as Record<string, unknown>;
+  const b = data as {
+    batch_id: string;
+    label: string;
+    event_id: string;
+    requested_count: number;
+    generated_count: number;
+    valid_from: string;
+    valid_until: string;
+  };
   return {
     batchId: b.batch_id,
     label: b.label,
     eventId: b.event_id,
-    requestedCount: b.requested_count as number,
-    generatedCount: b.generated_count as number,
-    validFrom: b.valid_from as string,
-    validUntil: b.valid_until as string,
+    requestedCount: b.requested_count,
+    generatedCount: b.generated_count,
+    validFrom: b.valid_from,
+    validUntil: b.valid_until,
   };
 }
 

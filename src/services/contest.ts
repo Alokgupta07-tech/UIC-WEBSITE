@@ -13,10 +13,12 @@ import type {
   UserContestStatus,
   ContestModerationLog,
   VerificationStatus,
+  VerificationSource,
   SubmissionStatus,
   ContestStatus,
   ContestSettings,
 } from "@/types";
+import type { Json } from "@/integrations/supabase/types";
 
 // ============================================================================
 // PARTICIPANT VERIFICATION
@@ -384,7 +386,7 @@ export async function logModerationAction(log: Omit<ContestModerationLog, "id" |
       target_id: log.targetId,
       action: log.action,
       reason: log.reason,
-      metadata: log.metadata,
+      metadata: (log.metadata ?? null) as unknown as Json | null,
     })
     .select()
     .single();
@@ -490,8 +492,8 @@ export async function getAllContestRatings(eventId: string) {
     .from("contest_ratings")
     .select(`
       *,
-      profiles:reviewer_id(full_name, avatar_url),
-      contest_submissions:submission_id(project_name, user_id, profiles:user_id(full_name))
+      profiles:contest_ratings_reviewer_id_fkey(full_name, avatar_url),
+      contest_submissions:contest_ratings_submission_id_fkey(project_name, user_id, profiles!user_id(full_name))
     `)
     .eq("event_id", eventId)
     .order("created_at", { ascending: false });
@@ -569,7 +571,7 @@ function mapParticipant(row: Record<string, unknown>): ContestParticipant {
     participantEmail: row.participant_email as string,
     participantName: row.participant_name as string,
     verificationStatus: row.verification_status as VerificationStatus,
-    verificationSource: row.verification_source as string,
+    verificationSource: row.verification_source as VerificationSource,
     verifiedBy: (row.verified_by as string) || null,
     verifiedAt: (row.verified_at as string) || null,
     rejectionOrAdminNote: (row.rejection_or_admin_note as string) || null,
@@ -579,6 +581,7 @@ function mapParticipant(row: Record<string, unknown>): ContestParticipant {
 }
 
 function mapSubmission(row: Record<string, unknown>): ContestSubmission {
+  const profile = row.profiles as { full_name?: string | null; avatar_url?: string | null } | null | undefined;
   return {
     id: row.id as string,
     eventId: row.event_id as string,
@@ -596,6 +599,9 @@ function mapSubmission(row: Record<string, unknown>): ContestSubmission {
     ratingCount: Number(row.rating_count) || 0,
     submittedAt: row.submitted_at as string,
     updatedAt: row.updated_at as string,
+    participantName: profile?.full_name ?? null,
+    participantEmail: null,
+    participantAvatar: profile?.avatar_url ?? null,
   };
 }
 

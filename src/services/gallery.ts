@@ -98,7 +98,7 @@ export async function getGallery(): Promise<EventGalleryItem[]> {
 }
 
 export async function createGalleryItem(input: {
-  image_url: string;
+  image_url?: string | null;
   media_url: string;
   caption?: string | null;
   album?: string | null;

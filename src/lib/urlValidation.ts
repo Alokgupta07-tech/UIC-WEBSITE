@@ -171,11 +171,20 @@ export function formatUrlForDisplay(url: string, maxLength: number = 50): string
 }
 
 /**
- * Creates safe external link attributes
+ * Creates safe external link attributes. When a URL is supplied it is
+ * normalized and validated; unsafe or missing URLs produce no href so the
+ * anchor is rendered inert instead of navigating to a dangerous target.
  */
-export function getSafeExternalLinkProps() {
-  return {
+export function getSafeExternalLinkProps(url?: string | null) {
+  const normalized = normalizeHttpUrl(url);
+  const props: { href?: string; target: string; rel: string; "aria-disabled"?: boolean } = {
     target: '_blank',
     rel: 'noopener noreferrer nofollow',
   };
+  if (normalized) {
+    props.href = normalized;
+  } else {
+    props['aria-disabled'] = true;
+  }
+  return props;
 }

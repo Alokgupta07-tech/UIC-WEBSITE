@@ -5,12 +5,18 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { SITE_URL } from "@/features/seo/seoConfig";
 
+export interface AuthProfile {
+  fullName: string | null;
+  email: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
   roleLoading: boolean;
+  profile: AuthProfile | null;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -23,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [roleLoading, setRoleLoading] = useState(true);
+  const [profile, setProfile] = useState<AuthProfile | null>(null);
   const navigate = useNavigate();
   const previousUserId = useRef<string | null>(null);
 
@@ -38,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
+      .in("role", ["admin", "super_admin"])
+      .limit(1);
 
     if (error) {
       setIsAdmin(false);
@@ -47,9 +54,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setIsAdmin(Boolean(data));
+    setIsAdmin(Boolean(data && data.length > 0));
     setRoleLoading(false);
   };
+
+  useEffect(() => {
+    let active = true;
+    const userId = user?.id ?? null;
+    if (!userId) {
+      setProfile(null);
+      return;
+    }
+    supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        setProfile(
+          data
+            ? { fullName: (data as { full_name?: string | null }).full_name ?? null, email: (data as { email?: string | null }).email ?? null }
+            : null
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     // Listen for auth state changes (handles redirect callback from Google)
@@ -128,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, roleLoading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, roleLoading, profile, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

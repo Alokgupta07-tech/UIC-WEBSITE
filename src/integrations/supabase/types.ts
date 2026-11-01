@@ -315,6 +315,33 @@ export type Database = {
           },
         ]
       }
+      attendance: {
+        Row: {
+          id: string
+          event_id: string
+          user_id: string
+          code_id: string
+          status: string
+          marked_at: string | null | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          user_id: string
+          code_id: string
+          status?: string
+          marked_at?: string | null | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          user_id?: string
+          code_id?: string
+          status?: string
+          marked_at?: string | null | null
+        }
+        Relationships: []
+      }
       attendance_codes: {
         Row: {
           code: string
@@ -359,6 +386,54 @@ export type Database = {
           },
         ]
       }
+      certified_students: {
+        Row: {
+          id: string
+          name: string
+          department: string | null | null
+          year: string | null | null
+          achievement: string
+          event: string
+          position: string | null | null
+          image_url: string | null | null
+          linkedin_url: string | null | null
+          display_order: number | null | null
+          is_active: boolean | null | null
+          created_at: string | null | null
+          updated_at: string | null | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          department?: string | null | null
+          year?: string | null | null
+          achievement: string
+          event: string
+          position?: string | null | null
+          image_url?: string | null | null
+          linkedin_url?: string | null | null
+          display_order?: number | null | null
+          is_active?: boolean | null | null
+          created_at?: string | null | null
+          updated_at?: string | null | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          department?: string | null | null
+          year?: string | null | null
+          achievement?: string
+          event?: string
+          position?: string | null | null
+          image_url?: string | null | null
+          linkedin_url?: string | null | null
+          display_order?: number | null | null
+          is_active?: boolean | null | null
+          created_at?: string | null | null
+          updated_at?: string | null | null
+        }
+        Relationships: []
+      }
       contact_messages: {
         Row: {
           created_at: string | null
@@ -386,6 +461,272 @@ export type Database = {
           message?: string
           name?: string
           subject?: string | null
+        }
+        Relationships: []
+      }
+      contest_moderation_logs: {
+        Row: {
+          id: string
+          event_id: string
+          admin_id: string
+          target_type: string
+          target_id: string
+          action: string
+          reason: string | null | null
+          metadata: Json | null | null
+          created_at: string | null | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          admin_id: string
+          target_type: string
+          target_id: string
+          action: string
+          reason?: string | null | null
+          metadata?: Json | null | null
+          created_at?: string | null | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          admin_id?: string
+          target_type?: string
+          target_id?: string
+          action?: string
+          reason?: string | null | null
+          metadata?: Json | null | null
+          created_at?: string | null | null
+        }
+        Relationships: []
+      }
+      contest_participants: {
+        Row: {
+          id: string
+          event_id: string
+          user_id: string | null
+          unstop_registration_id: string | null | null
+          participant_email: string
+          participant_name: string
+          verification_status: string
+          verification_source: string
+          verified_by: string | null
+          verified_at: string | null | null
+          rejection_or_admin_note: string | null | null
+          created_at: string | null | null
+          updated_at: string | null | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          user_id?: string | null
+          unstop_registration_id?: string | null | null
+          participant_email: string
+          participant_name: string
+          verification_status?: string
+          verification_source?: string
+          verified_by?: string | null
+          verified_at?: string | null | null
+          rejection_or_admin_note?: string | null | null
+          created_at?: string | null | null
+          updated_at?: string | null | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          user_id?: string | null
+          unstop_registration_id?: string | null | null
+          participant_email?: string
+          participant_name?: string
+          verification_status?: string
+          verification_source?: string
+          verified_by?: string | null
+          verified_at?: string | null | null
+          rejection_or_admin_note?: string | null | null
+          created_at?: string | null | null
+          updated_at?: string | null | null
+        }
+        Relationships: []
+      }
+      contest_ratings: {
+        Row: {
+          id: string
+          event_id: string
+          submission_id: string
+          reviewer_id: string
+          score: number
+          is_valid: boolean
+          moderation_reason: string | null | null
+          moderated_by: string | null
+          moderated_at: string | null | null
+          created_at: string | null | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          submission_id: string
+          reviewer_id: string
+          score: number
+          is_valid?: boolean
+          moderation_reason?: string | null | null
+          moderated_by?: string | null
+          moderated_at?: string | null | null
+          created_at?: string | null | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          submission_id?: string
+          reviewer_id?: string
+          score?: number
+          is_valid?: boolean
+          moderation_reason?: string | null | null
+          moderated_by?: string | null
+          moderated_at?: string | null | null
+          created_at?: string | null | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_ratings_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contest_ratings_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contest_ratings_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "contest_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contest_submissions: {
+        Row: {
+          id: string
+          event_id: string
+          user_id: string
+          project_name: string
+          project_description: string
+          live_url: string
+          repo_url: string | null | null
+          status: string
+          moderation_reason: string | null | null
+          moderated_by: string | null
+          moderated_at: string | null | null
+          admin_override_edit_allowed: boolean
+          avg_rating: number
+          rating_count: number
+          submitted_at: string | null | null
+          updated_at: string | null | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          user_id: string
+          project_name: string
+          project_description: string
+          live_url: string
+          repo_url?: string | null | null
+          status?: string
+          moderation_reason?: string | null | null
+          moderated_by?: string | null
+          moderated_at?: string | null | null
+          admin_override_edit_allowed?: boolean
+          avg_rating?: number
+          rating_count?: number
+          submitted_at?: string | null | null
+          updated_at?: string | null | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          user_id?: string
+          project_name?: string
+          project_description?: string
+          live_url?: string
+          repo_url?: string | null | null
+          status?: string
+          moderation_reason?: string | null | null
+          moderated_by?: string | null
+          moderated_at?: string | null | null
+          admin_override_edit_allowed?: boolean
+          avg_rating?: number
+          rating_count?: number
+          submitted_at?: string | null | null
+          updated_at?: string | null | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_submissions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contest_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contest_submissions_moderated_by_fkey"
+            columns: ["moderated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_attendance_codes: {
+        Row: {
+          id: string
+          event_id: string
+          code_hash: string
+          code_display: string | null | null
+          valid_from: string | null
+          valid_until: string | null
+          is_active: boolean
+          revoked_at: string | null | null
+          revoked_by: string | null
+          created_by: string | null
+          created_at: string | null | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          code_hash: string
+          code_display?: string | null | null
+          valid_from: string | null
+          valid_until: string | null
+          is_active?: boolean
+          revoked_at?: string | null | null
+          revoked_by?: string | null
+          created_by?: string | null
+          created_at?: string | null | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          code_hash?: string
+          code_display?: string | null | null
+          valid_from?: string | null
+          valid_until?: string | null
+          is_active?: boolean
+          revoked_at?: string | null | null
+          revoked_by?: string | null
+          created_by?: string | null
+          created_at?: string | null | null
         }
         Relationships: []
       }
@@ -461,6 +802,17 @@ export type Database = {
         Row: {
           banner_image: string | null
           category_id: string | null
+          contest_status: string | null
+          external_registration_url: string | null
+          is_gallery_published: boolean | null
+          is_leaderboard_published: boolean | null
+          is_ratings_open: boolean | null
+          is_submissions_open: boolean | null
+          min_ratings_for_ranking: number | null
+          rating_close_at: string | null
+          rating_open_at: string | null
+          submission_close_at: string | null
+          submission_open_at: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
@@ -487,6 +839,17 @@ export type Database = {
         Insert: {
           banner_image?: string | null
           category_id?: string | null
+          contest_status?: string | null
+          external_registration_url?: string | null
+          is_gallery_published?: boolean | null
+          is_leaderboard_published?: boolean | null
+          is_ratings_open?: boolean | null
+          is_submissions_open?: boolean | null
+          min_ratings_for_ranking?: number | null
+          rating_close_at?: string | null
+          rating_open_at?: string | null
+          submission_close_at?: string | null
+          submission_open_at?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -513,6 +876,17 @@ export type Database = {
         Update: {
           banner_image?: string | null
           category_id?: string | null
+          contest_status?: string | null
+          external_registration_url?: string | null
+          is_gallery_published?: boolean | null
+          is_leaderboard_published?: boolean | null
+          is_ratings_open?: boolean | null
+          is_submissions_open?: boolean | null
+          min_ratings_for_ranking?: number | null
+          rating_close_at?: string | null
+          rating_open_at?: string | null
+          submission_close_at?: string | null
+          submission_open_at?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -626,6 +1000,24 @@ export type Database = {
           updated_at?: string | null
           whatsapp_community?: string | null
           youtube?: string | null
+        }
+        Relationships: []
+      }
+      newsletter_subscribers: {
+        Row: {
+          id: string
+          email: string
+          subscribed_at: string | null | null
+        }
+        Insert: {
+          id?: string
+          email: string
+          subscribed_at?: string | null | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          subscribed_at?: string | null | null
         }
         Relationships: []
       }
@@ -805,6 +1197,54 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_event_attendance_code: {
+        Args: { p_event_id: string; p_validity_hours: number }
+        Returns: string
+      }
+      generate_participant_codes: {
+        Args: { p_event_id: string; p_count: number; p_validity_hours: number }
+        Returns: Json
+      }
+      get_contest_leaderboard: {
+        Args: { p_event_id: string; p_limit: number }
+        Returns: { rank: number; submission_id: string; project_name: string; participant_name: string | null; participant_id: string | null; live_url: string; repo_url: string | null; avg_rating: number; rating_count: number; submitted_at: string; is_provisional: boolean }[]
+      }
+      get_contest_submission_with_details: {
+        Args: { p_submission_id: string }
+        Returns: { id: string; event_id: string; user_id: string; project_name: string; project_description: string; live_url: string; repo_url: string | null; status: string; moderation_reason: string | null; moderated_by: string | null; moderated_at: string | null; admin_override_edit_allowed: boolean; avg_rating: number; rating_count: number; submitted_at: string; updated_at: string; participant_name: string | null; participant_email: string | null; participant_avatar: string | null; verification_status: string | null; user_has_rated: boolean }[]
+      }
+      get_event_attendance: {
+        Args: { p_event_id: string }
+        Returns: { id: string; user_id: string; code_id: string; status: string; marked_at: string; email: string | null; full_name: string | null }[]
+      }
+      get_participant_batches: {
+        Args: { p_event_id: string }
+        Returns: { id: string; label: string; code_count: number; valid_from: string; valid_until: string; created_at: string; revoked_at: string | null; used_count: number; remaining_count: number }[]
+      }
+      get_participant_codes: {
+        Args: { p_batch_id: string }
+        Returns: { serial_no: number; code: string; is_used: boolean }[]
+      }
+      get_user_contest_status: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: { is_verified: boolean; verification_status: string | null; has_submitted: boolean; submission_id: string | null; current_rank: number | null; total_ranked: number; websites_rated: number; eligible_to_rate: number }[]
+      }
+      link_contest_participant_to_user: {
+        Args: { p_event_id: string; p_user_email: string }
+        Returns: null
+      }
+      mark_attendance: {
+        Args: { p_code: string }
+        Returns: string
+      }
+      revoke_event_attendance_code: {
+        Args: { p_event_id: string }
+        Returns: null
+      }
+      revoke_participant_batch: {
+        Args: { p_batch_id: string }
+        Returns: null
+      }
       generate_attendance_codes: {
         Args: {
           p_event_id: string
@@ -883,7 +1323,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "member"
+      app_role: "admin" | "moderator" | "member" | "super_admin"
       event_status: "draft" | "published" | "archived"
     }
     CompositeTypes: {
@@ -1012,7 +1452,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "member"],
+      app_role: ["admin", "moderator", "member", "super_admin"],
       event_status: ["draft", "published", "archived"],
     },
   },

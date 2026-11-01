@@ -174,13 +174,14 @@ export function useUserRating(submissionId: string) {
   });
 }
 
-export function useUserRatings(eventId: string) {
+export function useUserRatings(eventId: string, userIdOverride?: string) {
   const { user } = useAuth();
-  
+  const effectiveUserId = userIdOverride ?? user?.id ?? "";
+
   return useQuery({
-    queryKey: contestKeys.userRatings(eventId, user?.id || ""),
-    queryFn: () => contestService.getUserRatings(eventId, user!.id),
-    enabled: !!user?.id,
+    queryKey: contestKeys.userRatings(eventId, effectiveUserId),
+    queryFn: () => contestService.getUserRatings(eventId, effectiveUserId),
+    enabled: !!effectiveUserId,
   });
 }
 
