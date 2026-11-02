@@ -10,20 +10,20 @@ import { ProtectedAdminRoute } from "@/features/auth";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { Analytics } from "@vercel/analytics/react";
 import Index from "./pages/Index";
-import Events from "./pages/Events";
-import EventDetail from "./pages/EventDetail";
-import Team from "./pages/Team";
-import CertifiedStudents from "./pages/CertifiedStudents";
-import Resources from "./pages/Resources";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import Auth from "./pages/Auth";
+const Events = lazy(() => import("./pages/Events"));
+const EventDetail = lazy(() => import("./pages/EventDetail"));
+const Team = lazy(() => import("./pages/Team"));
+const CertifiedStudents = lazy(() => import("./pages/CertifiedStudents"));
+const Resources = lazy(() => import("./pages/Resources"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Auth = lazy(() => import("./pages/Auth"));
 const Gallery = lazy(() => import("./pages/Gallery"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Attendance = lazy(() => import("./pages/Attendance"));
 const VerifyCertificate = lazy(() => import("./pages/VerifyCertificate"));
-import NotFound from "./pages/NotFound";
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
